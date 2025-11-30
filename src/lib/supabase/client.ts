@@ -1,5 +1,6 @@
-// src/lib/supabase/client.ts
-import { createBrowserSupabaseClient } from '@supabase/auth-helpers-react';
-import type { Database } from '@/types/supabase';
+import { createClient } from "@supabase/supabase-js";
 
-export const supabase = createBrowserSupabaseClient<Database>();
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
