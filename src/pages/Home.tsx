@@ -28,7 +28,6 @@ const Home = () => {
   const [openPostModal, setOpenPostModal] = useState(false);
   const navigate = useNavigate();
 
-  // Greeting based on time
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -37,38 +36,38 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24"> {/* space for bottom nav */}
+    <div className="min-h-screen bg-gray-50 pb-24">
 
       {/* HEADER */}
-      <header className="sticky top-0 bg-white shadow-md px-6 py-5 flex justify-between items-center z-20">
-        <h1 className="text-2xl font-bold text-gray-800">Campus Hub</h1>
-        <div className="text-sm bg-orange-100 text-orange-600 px-4 py-1.5 rounded-full font-medium">
+      <header className="sticky top-0 bg-white shadow-md px-4 sm:px-6 py-4 sm:py-5 flex justify-between items-center z-20">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Campus Hub</h1>
+        <div className="text-xs sm:text-sm bg-orange-100 text-orange-600 px-3 sm:px-4 py-1.5 rounded-full font-medium">
           {campus?.name || "Campus"}
         </div>
       </header>
 
       {/* GREETING */}
-      <section className="px-6 pt-6">
+      <section className="px-4 sm:px-6 pt-6">
         <motion.h2
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-bold text-gray-800"
+          className="text-2xl sm:text-3xl font-bold text-gray-800"
         >
           {getGreeting()}, <span className="text-orange-600">welcome back!</span>
         </motion.h2>
-        <p className="text-gray-600 mt-2">
+        <p className="text-gray-600 mt-2 text-sm sm:text-base">
           What do you need today around {campus?.name}?
         </p>
       </section>
 
       {/* SEARCH BAR */}
-      <section className="px-6 mt-6">
-        <div className="flex items-center bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-4 gap-3">
+      <section className="px-4 sm:px-6 mt-6">
+        <div className="flex items-center bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 sm:py-4 gap-3">
           <FaSearch className="text-gray-500" />
           <input
             type="text"
             placeholder="Search events, food, notes..."
-            className="outline-none flex-1 text-gray-700 placeholder-gray-400"
+            className="outline-none flex-1 text-gray-700 placeholder-gray-400 text-sm sm:text-base"
             readOnly
             onClick={() => navigate("/explore")}
           />
@@ -76,7 +75,7 @@ const Home = () => {
       </section>
 
       {/* FEATURES GRID */}
-      <section className="px-6 py-6 grid grid-cols-1 gap-4">
+      <section className="px-4 sm:px-6 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {featureFeed.map((f, i) => (
           <motion.div
             key={i}
@@ -94,21 +93,21 @@ const Home = () => {
             }}
             className="bg-white rounded-2xl p-5 flex items-center gap-4 shadow-md border border-gray-100 cursor-pointer"
           >
-            <div className={`${f.color} p-4 rounded-xl text-white shadow-lg`}>
+            <div className={`${f.color} p-4 rounded-xl text-white shadow-lg text-lg sm:text-xl`}>
               {f.icon}
             </div>
             <div>
-              <h3 className="font-bold text-gray-800">{f.title}</h3>
-              <p className="text-sm text-gray-500">{f.description}</p>
+              <h3 className="font-bold text-gray-800 text-base sm:text-lg">{f.title}</h3>
+              <p className="text-xs sm:text-sm text-gray-500">{f.description}</p>
             </div>
           </motion.div>
         ))}
       </section>
 
-      {/* POST MODAL — now controlled only by BottomNav */}
+      {/* POST MODAL */}
       {openPostModal && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4 z-50"
           onClick={() => setOpenPostModal(false)}
         >
           <motion.div
@@ -116,16 +115,19 @@ const Home = () => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl p-8 w-11/12 max-w-sm shadow-2xl"
+            className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-sm shadow-2xl"
           >
-            <h2 className="text-xl font-bold text-center mb-6">What do you want to post?</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-center mb-6">
+              What do you want to post?
+            </h2>
+
             <div className="grid grid-cols-1 gap-3">
               {featureFeed.map((f, i) => (
                 <button
                   key={i}
                   onClick={() => {
                     setOpenPostModal(false);
-                    const postRoutes: Record<string, string> = {
+                    const routes: Record<string, string> = {
                       "Confessions": "/confessions/post",
                       "Marketplace": "/marketplace/new",
                       "Events": "/events/new",
@@ -133,15 +135,16 @@ const Home = () => {
                       "Food Delivery": "/food/new",
                       "Notes & Past Papers": "/notes/new",
                     };
-                    navigate(postRoutes[f.title] || "/");
+                    navigate(routes[f.title] || "/");
                   }}
                   className={`flex items-center gap-4 p-4 rounded-2xl text-white font-medium shadow-md hover:shadow-lg transition transform hover:scale-105 ${f.color}`}
                 >
-                  <span className="text-2xl">{f.icon}</span>
-                  <span>{f.title}</span>
+                  <span className="text-xl sm:text-2xl">{f.icon}</span>
+                  <span className="text-sm sm:text-base">{f.title}</span>
                 </button>
               ))}
             </div>
+
             <button
               onClick={() => setOpenPostModal(false)}
               className="mt-6 w-full py-3 text-gray-600 font-medium"
@@ -152,7 +155,7 @@ const Home = () => {
         </div>
       )}
 
-      {/* BOTTOM NAV — now controls the modal */}
+      {/* BOTTOM NAV */}
       <BottomNav openPostModal={() => setOpenPostModal(true)} />
     </div>
   );

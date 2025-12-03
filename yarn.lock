@@ -2579,10 +2579,10 @@ stylelint@^16.26.0:
     table "^6.9.0"
     write-file-atomic "^5.0.1"
 
-supabase@^2.63.1:
-  version "2.64.1"
-  resolved "https://registry.yarnpkg.com/supabase/-/supabase-2.64.1.tgz#0c049117b1bd3a05a76bfacd4282ea0528a68bf1"
-  integrity sha512-awrqUgOYb7tUvDv6H+V9UKZo05O5KpvkIIARBE3c+KXZ98bXD0puh7P9BBBmKUmy4kH7TS4ukdj4z6TzNwAOUw==
+supabase@^2.64.2:
+  version "2.64.2"
+  resolved "https://registry.yarnpkg.com/supabase/-/supabase-2.64.2.tgz#1ef442828cedb966e6016fa51c207536c101ba2c"
+  integrity sha512-EugYwwNGIcJSuyPPvUR02KYn5YqM9M/ZdgEbWZli1J4HQZafazVYsCGCpApRozzUG314tZBsMylNCZzc9nfvRw==
   dependencies:
     bin-links "^6.0.0"
     https-proxy-agent "^7.0.2"

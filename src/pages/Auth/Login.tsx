@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, Mail, Shield, Zap, Users } from "lucide-react";
 
+import { supabase } from "../../lib/supabaseClient";
+
 const ALLOWED_DOMAINS = [
   "ku.ac.ke", "uonbi.ac.ke", "students.uonbi.ac.ke",
   "strathmore.edu", "jkuat.ac.ke", "mku.ac.ke", "dkut.ac.ke", "ttu.ac.ke"
@@ -44,10 +46,21 @@ const Login = () => {
     if (!isValid || isLoading) return;
 
     setIsLoading(true);
-    // Simulate sending magic link
-    await new Promise(r => setTimeout(r, 1500));
+    const  {error} = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      alert(`Magic link sent to ${email}. Please check your inbox.`);
+      setEmail("");
+    }
+
     navigate("/auth/check-email", { state: { email, action: activeTab } });
-    setIsLoading(false);
   };
 
   return (
