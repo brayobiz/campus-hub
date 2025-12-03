@@ -1,10 +1,10 @@
-// src/pages/auth/Login.tsx
+// src/pages/auth/SignUp.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
-const Login = () =><div>Login Page</div>;
+const SignUp = () => <div>Login Page</div>;
 
-export default Login;
+export default SignUp;

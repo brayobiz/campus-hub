@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Login from "./pages/Auth/Login";
+import SignUp from "./pages/Auth/SignUp";
 import CampusPicker from "./pages/Auth/CampusPicker";
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
@@ -30,12 +31,13 @@ const App = () => {
   <>
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/auth/login" element={<Login />} />
       <Route path="/auth/campuspicker" element={<CampusPicker />} />
       <Route path="/home" element={<Home />} />
       <Route path="/explore" element={<Explore />} />
       <Route path="/alerts" element={<Alerts />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/auth/login" element={<Login />} />
+      <Route path="/auth/signup" element={<SignUp />} />
       
       <Route path="/confessions" element={ <ConfessionsFeed />} />
       <Route path="/confessions/post" element={<PostConfession />} />
