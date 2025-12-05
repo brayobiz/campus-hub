@@ -1,104 +1,172 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { supabase } from "../../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
-import { useCampusStore } from "../../store/useCampusStore";
-import {
-  FaUniversity,
-  FaBuilding,
-  FaHome,
-  FaMapMarkerAlt,
-  FaSchool,
-} from "react-icons/fa";
+import { FaSearch } from "react-icons/fa";
 
-const campuses = [
-  { id: "ku", name: "Kenyatta University", icon: FaSchool },
-  { id: "uon", name: "University of Nairobi", icon: FaUniversity },
-  { id: "strath", name: "Strathmore University", icon: FaBuilding },
-  { id: "moi", name: "Moi University", icon: FaHome },
-  { id: "jku", name: "Jomo Kenyatta University", icon: FaMapMarkerAlt },
-];
+interface Campus {
+  id: string;
+  name: string;
+  short_name?: string;
+}
 
 const CampusPicker = () => {
-  const [selectedCampus, setSelectedCampus] = useState<string | null>(null);
-  const setCampus = useCampusStore((state) => state.setCampus);
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [filtered, setFiltered] = useState<Campus[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [error, setError] = useState("");
+
   const navigate = useNavigate();
 
-  const handleContinue = () => {
-    if (!selectedCampus) return;
-    const campusObj = campuses.find((c) => c.id === selectedCampus)!;
-    setCampus(campusObj);
-    navigate("/home"); // navigate to Home
+  // Fetch campuses from DB
+  const fetchCampuses = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from("campuses").select("*");
+
+    if (!error && data) {
+      setCampuses(data);
+      setFiltered(data);
+    } else {
+      setError("Failed to load campuses");
+    }
+    setLoading(false);
   };
 
-  const gridItemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: { delay: i * 0.07, type: "spring", stiffness: 140 },
-    }),
+  // Fetch current user profile and redirect if campus exists
+  const checkUserCampus = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
+    if (!userId) return;
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("campus_id")
+      .eq("id", userId)
+      .single();
+
+    if (!error && profile?.campus_id) {
+      navigate("/home"); // Redirect if campus already selected
+    }
+  };
+
+  useEffect(() => {
+    fetchCampuses();
+    checkUserCampus();
+  }, []);
+
+  // Search filter
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    const query = value.toLowerCase();
+    const results = campuses.filter((c) =>
+      c.name.toLowerCase().includes(query)
+    );
+    setFiltered(results);
+  };
+
+  // Set campus for current user
+  const setCampus = async (campusId: string) => {
+    setUpdating(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+
+    if (!userId) return;
+
+    // Ensure a profile exists, create one if not
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
+
+    if (!profile && !profileError) {
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({ id: userId, campus_id: campusId });
+      if (insertError) {
+        setError("Error creating profile");
+        setUpdating(false);
+        return;
+      }
+    } else if (!profileError) {
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ campus_id: campusId })
+        .eq("id", userId);
+
+      if (updateError) {
+        setError("Error updating campus");
+        setUpdating(false);
+        return;
+      }
+    }
+
+    setUpdating(false);
+    navigate("/home"); // Redirect after setting campus
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-100 to-orange-200 px-4">
+    <div className="min-h-screen bg-gray-50 px-6 py-10">
       <motion.div
-        initial={{ opacity: 0, y: 25 }}
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55 }}
-        className="max-w-4xl w-full bg-white rounded-3xl shadow-2xl p-12"
+        className="max-w-md mx-auto"
       >
-        <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
-          Select Your Campus
-        </h1>
-        <p className="text-center text-gray-500 mb-10">
-          Personalize your experience based on your institution
-        </p>
+        {/* HEADER */}
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-3xl p-8 shadow-xl mb-6">
+          <h1 className="text-2xl font-bold">Choose Your Campus</h1>
+          <p className="text-sm opacity-90 mt-2">
+            Select the campus you belong to.
+          </p>
+        </div>
 
-        <motion.div
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-10"
-        >
-          {campuses.map((campus, index) => {
-            const Icon = campus.icon;
-            return (
+        {/* SEARCH BAR */}
+        <div className="flex items-center bg-white border border-gray-200 shadow-sm rounded-2xl px-4 py-3 gap-3 mb-4">
+          <FaSearch className="text-gray-400" />
+          <input
+            type="text"
+            className="outline-none flex-1 text-sm"
+            placeholder="Search campus..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
+
+        {/* ERROR MESSAGE */}
+        {error && (
+          <div className="bg-rose-100 text-rose-600 p-3 rounded-xl mb-4 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* CAMPUS LIST */}
+        {loading ? (
+          <p className="text-gray-500 text-center">Loading campuses...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-gray-500 text-center">No campuses found.</p>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map((c) => (
               <motion.button
-                key={campus.id}
-                custom={index}
-                variants={gridItemVariants}
-                whileHover={{ scale: 1.1, rotate: "-1.5deg" }}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => setSelectedCampus(campus.id)}
-                className={`flex flex-col items-center gap-3 px-4 py-6 rounded-2xl font-semibold shadow-md transition-all duration-300 border
-                  ${
-                    selectedCampus === campus.id
-                      ? "bg-[#F97316] text-white shadow-xl border-orange-500 scale-[1.04]"
-                      : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200"
-                  }
-                `}
+                key={c.id}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setCampus(c.id)}
+                disabled={updating}
+                className="w-full text-left bg-white border border-gray-100 shadow-md p-4 rounded-2xl flex items-center gap-4 hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Icon className="text-3xl" />
-                {campus.name}
+                <div className="bg-orange-100 text-orange-600 px-4 py-3 rounded-xl font-bold">
+                  {c.short_name ?? c.name[0]}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800">{c.name}</h3>
+                </div>
               </motion.button>
-            );
-          })}
-        </motion.div>
-
-        <motion.button
-          onClick={handleContinue}
-          disabled={!selectedCampus}
-          whileHover={selectedCampus ? { scale: 1.03 } : {}}
-          whileTap={selectedCampus ? { scale: 0.97 } : {}}
-          className={`w-full py-4 rounded-2xl font-semibold text-white transition shadow-md
-            ${
-              selectedCampus
-                ? "bg-[#F97316] hover:bg-orange-600 hover:shadow-lg cursor-pointer"
-                : "bg-orange-200 cursor-not-allowed"
-            }
-          `}
-        >
-          Continue
-        </motion.button>
+            ))}
+          </div>
+        )}
       </motion.div>
     </div>
   );

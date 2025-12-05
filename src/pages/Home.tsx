@@ -39,59 +39,71 @@ const Home = () => {
     <div className="min-h-screen bg-gray-50 pb-24">
 
       {/* HEADER */}
-      <header className="sticky top-0 bg-white shadow-md px-4 sm:px-6 py-4 sm:py-5 flex justify-between items-center z-20">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Campus Hub</h1>
-        <div className="text-xs sm:text-sm bg-orange-100 text-orange-600 px-3 sm:px-4 py-1.5 rounded-full font-medium">
+      <header className="sticky top-0 bg-white/90 backdrop-blur-md shadow-sm px-4 sm:px-6 py-4 flex justify-between items-center z-20">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Campus Hub</h1>
+        <div className="text-xs sm:text-sm bg-orange-100 text-orange-600 px-3 sm:px-4 py-1.5 rounded-full font-medium shadow">
           {campus?.name || "Campus"}
         </div>
       </header>
 
-      {/* GREETING */}
-      <section className="px-4 sm:px-6 pt-6">
-        <motion.h2
-          initial={{ opacity: 0, y: 10 }}
+      {/* HERO SECTION */}
+      <section className="px-4 sm:px-6 mt-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-2xl sm:text-3xl font-bold text-gray-800"
+          className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-3xl p-6 sm:p-8 shadow-xl"
         >
-          {getGreeting()}, <span className="text-orange-600">welcome back!</span>
-        </motion.h2>
-        <p className="text-gray-600 mt-2 text-sm sm:text-base">
-          What do you need today around {campus?.name}?
-        </p>
+          <h2 className="text-2xl sm:text-3xl font-bold">
+            {getGreeting()},  
+            <span className="block mt-1 opacity-90">Welcome back 👋</span>
+          </h2>
+
+          <p className="mt-3 text-sm sm:text-base opacity-90">
+            Explore everything happening at <span className="font-semibold">{campus?.name}</span>.
+          </p>
+
+          <button
+            onClick={() => navigate("/explore")}
+            className="mt-5 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full px-5 py-2 text-sm sm:text-base font-medium hover:bg-white/30 transition"
+          >
+            Start Exploring
+          </button>
+        </motion.div>
       </section>
 
       {/* SEARCH BAR */}
       <section className="px-4 sm:px-6 mt-6">
-        <div className="flex items-center bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 sm:py-4 gap-3">
-          <FaSearch className="text-gray-500" />
+        <div className="flex items-center bg-white border border-gray-200 shadow-sm rounded-2xl px-4 py-3 gap-3 hover:shadow-md transition cursor-pointer"
+             onClick={() => navigate("/explore")}>
+          <FaSearch className="text-gray-500 text-lg" />
           <input
             type="text"
             placeholder="Search events, food, notes..."
             className="outline-none flex-1 text-gray-700 placeholder-gray-400 text-sm sm:text-base"
             readOnly
-            onClick={() => navigate("/explore")}
           />
         </div>
       </section>
 
-      {/* FEATURES GRID */}
-      <section className="px-4 sm:px-6 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* FEATURES */}
+      <section className="px-4 sm:px-6 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {featureFeed.map((f, i) => (
           <motion.div
             key={i}
             whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.02 }}
             onClick={() => {
               const routes: Record<string, string> = {
-                "Confessions": "/confessions",
-                "Marketplace": "/marketplace",
-                "Events": "/events",
-                "Roommates": "/roommates",
+                Confessions: "/confessions",
+                Marketplace: "/marketplace",
+                Events: "/events",
+                Roommates: "/roommates",
                 "Food Delivery": "/food",
                 "Notes & Past Papers": "/notes",
               };
               navigate(routes[f.title] || "/");
             }}
-            className="bg-white rounded-2xl p-5 flex items-center gap-4 shadow-md border border-gray-100 cursor-pointer"
+            className="bg-white rounded-2xl p-5 flex items-center gap-4 shadow-md hover:shadow-lg border border-gray-100 cursor-pointer transition"
           >
             <div className={`${f.color} p-4 rounded-xl text-white shadow-lg text-lg sm:text-xl`}>
               {f.icon}
@@ -128,16 +140,16 @@ const Home = () => {
                   onClick={() => {
                     setOpenPostModal(false);
                     const routes: Record<string, string> = {
-                      "Confessions": "/confessions/post",
-                      "Marketplace": "/marketplace/new",
-                      "Events": "/events/new",
-                      "Roommates": "/roommates/new",
+                      Confessions: "/confessions/post",
+                      Marketplace: "/marketplace/new",
+                      Events: "/events/new",
+                      Roommates: "/roommates/new",
                       "Food Delivery": "/food/new",
                       "Notes & Past Papers": "/notes/new",
                     };
                     navigate(routes[f.title] || "/");
                   }}
-                  className={`flex items-center gap-4 p-4 rounded-2xl text-white font-medium shadow-md hover:shadow-lg transition transform hover:scale-105 ${f.color}`}
+                  className={`flex items-center gap-4 p-4 rounded-2xl text-white font-medium shadow-md hover:shadow-xl transition ${f.color}`}
                 >
                   <span className="text-xl sm:text-2xl">{f.icon}</span>
                   <span className="text-sm sm:text-base">{f.title}</span>
