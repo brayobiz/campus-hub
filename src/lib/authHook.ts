@@ -1,0 +1,154 @@
+import { useEffect, useState } from "react";
+import { supabase } from "./supabaseClient";
+import { useUserStore } from "../store/useUserStore";
+import { useCampusStore } from "../store/useCampusStore";
+
+export const useAuthSession = () => {
+  const [loading, setLoading] = useState(true);
+  const setUser = useUserStore((s) => s.setUser);
+  const setCampus = useCampusStore((s) => s.setCampus);
+  const clearCampus = useCampusStore((s) => s.clearCampus);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initAuth = async () => {
+      try {
+        console.log("🔐 [authHook] Starting auth initialization...");
+        
+        // Set loading to false quickly to unblock UI
+        if (isMounted) {
+          setLoading(false);
+        }
+        
+        // Get current session asynchronously without blocking
+        try {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          
+          if (!isMounted) return;
+          
+          console.log("🔐 [authHook] Session check complete", { hasSession: !!sessionData?.session });
+          
+          if (sessionError || !sessionData?.session?.user) {
+            console.log("🔐 [authHook] No session found");
+            return;
+          }
+
+          const authUser = sessionData.session.user;
+          console.log("🔐 [authHook] User session found:", authUser.id);
+
+          // Set user in store
+          if (isMounted) {
+            setUser({
+              id: authUser.id,
+              email: authUser.email,
+              name: authUser.user_metadata?.fullname,
+            });
+          }
+
+          // Try to fetch campus from profiles table
+          try {
+            console.log("🔐 [authHook] Fetching profile and campus...");
+            const { data: profile, error: profileError } = await supabase
+              .from("profiles")
+              .select("campus_id")
+              .eq("id", authUser.id)
+              .single();
+
+            if (!isMounted) return;
+
+            if (!profileError && profile?.campus_id) {
+              // Fetch the full campus data including short_name
+              const { data: campus } = await supabase
+                .from("campuses")
+                .select("id, name, short_name")
+                .eq("id", profile.campus_id)
+                .single();
+
+              if (campus && isMounted) {
+                console.log("🔐 [authHook] Campus restored:", campus.name);
+                setCampus({
+                  id: campus.id,
+                  name: campus.name,
+                  short_name: campus.short_name,
+                });
+              }
+            } else {
+              console.log("🔐 [authHook] Profile found but no campus_id set");
+            }
+          } catch (e) {
+            console.error("🔐 [authHook] Error fetching campus:", e);
+          }
+        } catch (sessionErr) {
+          console.error("🔐 [authHook] Error getting session:", sessionErr);
+        }
+      } catch (err) {
+        console.error("❌ [authHook] Auth init error:", err);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    // Set up auth state listener
+    console.log("🔐 [authHook] Setting up auth state listener...");
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event: any, session: any) => {
+        console.log("🔐 [authHook] Auth state changed:", event);
+        if (!isMounted) return;
+
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.fullname,
+          });
+
+          // Also restore campus on auth state change
+          try {
+            const { data: profile, error: profileError } = await supabase
+              .from("profiles")
+              .select("campus_id")
+              .eq("id", session.user.id)
+              .single();
+
+            if (!isMounted) return;
+
+            if (!profileError && profile?.campus_id) {
+              const { data: campus } = await supabase
+                .from("campuses")
+                .select("id, name, short_name")
+                .eq("id", profile.campus_id)
+                .single();
+
+              if (campus && isMounted) {
+                setCampus({
+                  id: campus.id,
+                  name: campus.name,
+                  short_name: campus.short_name,
+                });
+              }
+            }
+          } catch (e) {
+            console.error("Error restoring campus on auth change:", e);
+          }
+        } else {
+          console.log("🔐 [authHook] User logged out");
+          if (isMounted) {
+            setUser(null);
+            clearCampus();
+          }
+        }
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  return { loading };
+};

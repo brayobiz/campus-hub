@@ -51,22 +51,16 @@ const EventsFeed = () => {
     };
   };
 
-  // Fetch events
+  // Mock events for testing
+  const mockEvents: Event[] = [
+    { id: 1, title: "End of Semester Bash", description: "Celebrate with us", date: "2025-12-20", location: "Kileleshwa" },
+    { id: 2, title: "Tech Meetup", description: "Learn new skills", date: "2025-12-15", location: "Campus Hall" },
+    { id: 3, title: "Sports Day", description: "Join the competition", date: "2025-12-10", location: "Sports Ground" },
+  ];
+
   const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/events");
-      if (!res.ok) throw new Error("Failed to load events");
-      const data = await res.json();
-      const list = (Array.isArray(data) ? data : data.events || [])
-        .sort((a: Event, b: Event) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      setEvents(list);
-    } catch (err) {
-      setError("Unable to load events right now.");
-    } finally {
-      setLoading(false);
-    }
+    // TEMP: Using mock data for testing
+    setEvents(mockEvents);
   };
 
   useEffect(() => {
@@ -211,7 +205,7 @@ const EventsFeed = () => {
             <div className="relative inline-block">
               <Calendar className="w-32 h-32 text-gray-200" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-6xl font-bold text-gray-300">?</div>
+                <div className="text-4xl font-bold text-gray-300">?</div>
               </div>
             </div>
             <h2 className="text-3xl font-bold text-gray-800 mt-10 mb-4">

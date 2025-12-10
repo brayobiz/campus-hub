@@ -69,7 +69,7 @@ const ConfessionsFeed = () => {
       <main className="px-5 pt-6 pb-10 space-y-5 max-w-2xl mx-auto">
         {confessions.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">No confessions yet</div>
+            <div className="text-4xl mb-4">No confessions yet</div>
             <p className="text-gray-600">Be the first to share something real.</p>
           </div>
         ) : (

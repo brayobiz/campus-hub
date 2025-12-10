@@ -39,7 +39,7 @@ const Landing = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-5xl sm:text-6xl md:text-8xl font-black leading-tight mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight mb-6">
               Your Campus.<br />
               <span className="text-orange-300">Your Voice.</span>
             </h1>
@@ -72,7 +72,7 @@ const Landing = () => {
       {/* TRUSTED BY — Dynamic Kenyan campuses */}
       <section className="py-20 px-6 bg-gray-50">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-4xl sm:text-5xl font-black text-gray-900 mb-4">
+          <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
             Trusted Across Kenya
           </h2>
           <p className="text-xl text-gray-600 mb-12">From KU to USIU — we're everywhere</p>
@@ -103,7 +103,7 @@ const Landing = () => {
       {/* FEATURES — Clean, powerful, Kenyan-focused */}
       <section className="py-20 px-6 bg-white">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl sm:text-6xl font-black text-center text-gray-900 mb-16">
+          <h2 className="text-3xl sm:text-5xl font-black text-center text-gray-900 mb-16">
             Built for <span className="text-orange-600">Real Campus Life</span>
           </h2>
 
@@ -161,7 +161,7 @@ const Landing = () => {
       <section className="py-24 px-6 bg-gradient-to-r from-orange-600 to-red-700 text-white">
         <div className="max-w-4xl mx-auto text-center">
           <Sparkles className="w-20 h-20 mx-auto mb-6 text-yellow-300" />
-          <h2 className="text-5xl sm:text-7xl font-black mb-6">
+          <h2 className="text-3xl sm:text-5xl font-black mb-6">
             Join 50,000+ Students Today
           </h2>
           <p className="text-2xl mb-10 opacity-90">

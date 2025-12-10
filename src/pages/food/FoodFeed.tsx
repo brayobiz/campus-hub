@@ -14,30 +14,25 @@ type FoodItem = {
   createdAt?: string;
 };
 
+const mockFoods: FoodItem[] = [
+  { id: 1, name: "Ugali & Sukuma Wiki", description: "Delicious traditional meal", price: "KSh 150", image: "🍲", contact: "0712345678" },
+  { id: 2, name: "Samosas (5pc)", description: "Crispy golden samosas", price: "KSh 100", image: "🥟", contact: "0712345679" },
+  { id: 3, name: "Chapati & Beans", description: "Hot, fresh chapati with beans", price: "KSh 120", image: "🥔", contact: "0712345680" },
+];
+
 const FoodFeed = () => {
-  const [foods, setFoods] = useState<FoodItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [foods, setFoods] = useState<FoodItem[]>(mockFoods);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchFoods = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/food");
-      if (!res.ok) throw new Error("Failed to load food items");
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data.foods || [];
-      setFoods(list);
-    } catch (err) {
-      setError("Could not load food menu.");
-    } finally {
-      setLoading(false);
-    }
+    // TEMP: Using mock data for testing
+    setFoods(mockFoods);
   };
 
   useEffect(() => {
-    fetchFoods();
+    // DISABLED: fetchFoods();
   }, []);
 
   const filteredFoods = useMemo(() => {
@@ -91,7 +86,7 @@ const FoodFeed = () => {
         {/* Error */}
         {error && (
           <div className="text-center py-20">
-            <div className="text-6xl mb-6">Something went wrong</div>
+            <div className="text-4xl mb-6">Something went wrong</div>
             <p className="text-gray-600 mb-6">{error}</p>
             <button onClick={fetchFoods} className="px-8 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition">
               Try Again

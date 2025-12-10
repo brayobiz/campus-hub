@@ -2,8 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface Campus {
+  id?: string;
   name: string;
-  // add other fields if needed
+  short_name?: string;
 }
 
 interface CampusStore {

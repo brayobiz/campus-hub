@@ -85,7 +85,7 @@ const MarketplaceFeed = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredPosts.length === 0 ? (
             <div className="col-span-full text-center py-24">
-              <div className="text-6xl mb-4">😔</div>
+              <div className="text-4xl mb-4">😔</div>
               <p className="text-xl text-gray-600">No items found</p>
               <p className="text-gray-500 mt-2">Try searching for something else</p>
             </div>
@@ -104,10 +104,10 @@ const MarketplaceFeed = () => {
                     <img
                       src={post.images[0]}
                       alt={post.title}
-                      className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="h-56 flex items-center justify-center">
+                    <div className="h-48 flex items-center justify-center">
                       <span className="text-gray-400 text-lg">No image</span>
                     </div>
                   )}

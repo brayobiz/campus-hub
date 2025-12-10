@@ -74,7 +74,7 @@ const PostNote = () => {
           />
 
           {showSuggestions && courseInput && filteredCourses.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 max-h-64 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 max-h-56 overflow-y-auto">
               {filteredCourses.map((code) => (
                 <button
                   key={code}
@@ -117,7 +117,7 @@ const PostNote = () => {
             return false;
           }
 
-          formData.set("campusId", campus.id);
+          formData.set("campusId", campus.id ?? "");
           formData.set("campusName", campus.name);
           formData.set("course", courseInput.trim().toUpperCase());
 

@@ -150,7 +150,7 @@ const NotesFeed = () => {
                   className="group bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300"
                 >
                   {/* File Preview */}
-                  <div className="relative h-64 bg-gray-100 cursor-pointer" onClick={() => window.open(note.file, "_blank")}>
+                  <div className="relative h-56 bg-gray-100 cursor-pointer" onClick={() => window.open(note.file, "_blank")}>
                     {fileType === "Image" ? (
                       <img src={note.file} alt={note.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                     ) : (

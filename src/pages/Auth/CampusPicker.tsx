@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "../../lib/supabaseClient";
+import { useCampusStore } from "../../store/useCampusStore";
 import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
 
@@ -10,28 +11,61 @@ interface Campus {
   short_name?: string;
 }
 
+// Mock campuses for fallback (used only if DB fetch fails or returns empty)
+const mockCampuses: Campus[] = [
+  { id: "1", name: "Kenyatta University", short_name: "KU" },
+  { id: "2", name: "University of Nairobi", short_name: "UON" },
+  { id: "3", name: "Strathmore University", short_name: "SU" },
+  { id: "4", name: "Multimedia University", short_name: "MMU" },
+  { id: "5", name: "Mount Kenya University", short_name: "MKU" },
+];
+
 const CampusPicker = () => {
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [filtered, setFiltered] = useState<Campus[]>([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
+  const setCampusStore = useCampusStore((s: any) => s.setCampus);
 
   // Fetch campuses from DB
   const fetchCampuses = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("campuses").select("*");
+    setError("");
 
-    if (!error && data) {
-      setCampuses(data);
-      setFiltered(data);
-    } else {
-      setError("Failed to load campuses");
+    try {
+      const { data, error } = await supabase
+        .from("campuses")
+        .select("id, name, short_name")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        // Use fallback mock campuses if none found
+        setCampuses(mockCampuses);
+        setFiltered(mockCampuses);
+      } else {
+        // Normalize IDs to strings
+        const normalized = data.map((c: any) => ({
+          id: String(c.id),
+          name: c.name,
+          short_name: c.short_name,
+        }));
+        setCampuses(normalized);
+        setFiltered(normalized);
+      }
+    } catch (err: any) {
+      console.warn("Failed to fetch campuses:", err?.message || err);
+      setError("Could not load campuses. Showing defaults.");
+      setCampuses(mockCampuses);
+      setFiltered(mockCampuses);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Fetch current user profile and redirect if campus exists
@@ -67,45 +101,58 @@ const CampusPicker = () => {
     setFiltered(results);
   };
 
-  // Set campus for current user
+  // Set campus for current user (upsert profile)
   const setCampus = async (campusId: string) => {
     setUpdating(true);
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id;
+    setError("");
 
-    if (!userId) return;
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
 
-    // Ensure a profile exists, create one if not
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", userId)
-      .single();
-
-    if (!profile && !profileError) {
-      const { error: insertError } = await supabase
-        .from("profiles")
-        .insert({ id: userId, campus_id: campusId });
-      if (insertError) {
-        setError("Error creating profile");
+      if (!userId) {
+        const msg = "User not found. Please login again.";
+        console.error(msg);
+        setError(msg);
         setUpdating(false);
         return;
       }
-    } else if (!profileError) {
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ campus_id: campusId })
-        .eq("id", userId);
 
-      if (updateError) {
-        setError("Error updating campus");
+      console.debug("Setting campus", { userId, campusId });
+
+      // Upsert the profile with the selected campus_id. This will create or update.
+      const { data: upsertData, error: upsertError } = await supabase
+        .from("profiles")
+        .upsert({ id: userId, campus_id: campusId }, { returning: "representation" });
+
+      if (upsertError) {
+        console.error("Failed to upsert profile:", upsertError);
+        const message = upsertError.message || JSON.stringify(upsertError);
+        setError(`Error updating campus: ${message}`);
         setUpdating(false);
         return;
       }
+
+      console.debug("Upsert result:", upsertData);
+
+      // Update local campus store so the app reflects the selection immediately
+      const selected = campuses.find((x) => String(x.id) === String(campusId));
+      if (selected) {
+        try {
+          setCampusStore(selected as any);
+        } catch (e) {
+          console.warn("Failed to set campus in store:", e);
+        }
+      }
+
+      // Success
+      setUpdating(false);
+      navigate("/home");
+    } catch (err: any) {
+      console.error("Unexpected error setting campus:", err);
+      setError("Unexpected error. Please try again.");
+      setUpdating(false);
     }
-
-    setUpdating(false);
-    navigate("/home"); // Redirect after setting campus
   };
 
   return (

@@ -17,7 +17,6 @@ const RoommatesFeed = () => {
     const query = search.toLowerCase();
     return posts.filter(
       (post) =>
-        post.name?.toLowerCase().includes(query) ||
         post.campus?.toLowerCase().includes(query) ||
         post.roomType?.toLowerCase().includes(query) ||
         post.description?.toLowerCase().includes(query)
@@ -89,11 +88,11 @@ const RoommatesFeed = () => {
                 className="group bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300"
               >
                 {/* Image + Budget Badge */}
-                <div className="relative h-56 bg-gray-200">
+                <div className="relative h-48 bg-gray-200">
                   {post.image ? (
                     <img
                       src={post.image}
-                      alt={`${post.name}'s room`}
+                      alt={`${post.roomType} room near ${post.campus}`}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />
                   ) : (
@@ -110,7 +109,7 @@ const RoommatesFeed = () => {
 
                 <div className="p-6">
                   <h3 className="font-bold text-xl text-gray-900 mb-2">
-                    {post.name}
+                    {`${post.roomType} — ${post.campus}`}
                   </h3>
 
                   <div className="space-y-3 text-sm text-gray-600 mb-5">

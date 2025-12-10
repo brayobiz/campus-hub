@@ -1,19 +1,21 @@
 // src/components/BottomNav.tsx
-import { NavLink, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import useModalStore from "../store/useModalStore";
 import { motion } from "framer-motion";
 import { FaHome, FaSearch, FaPlusCircle, FaBell, FaUser } from "react-icons/fa";
 
 interface BottomNavProps {
-  openPostModal: () => void;
+  openPostModal?: () => void;
 }
 
 const BottomNav = ({ openPostModal }: BottomNavProps) => {
   const navigate = useNavigate();
+  const openGlobalPost = useModalStore((s) => s.openPost);
 
   const navItems = [
     { to: "/home", icon: <FaHome className="text-2xl" />, label: "Home" },
     { to: "/explore", icon: <FaSearch className="text-2xl" />, label: "Explore" },
-    { icon: <FaPlusCircle className="text-4xl text-orange-500 drop-shadow-lg" />, label: "Post", action: openPostModal },
+    { icon: <FaPlusCircle className="text-2xl text-orange-500 drop-shadow-lg" />, label: "Post", action: openPostModal ?? openGlobalPost },
     { to: "/alerts", icon: <FaBell className="text-2xl" />, label: "Alerts" },
     { to: "/profile", icon: <FaUser className="text-2xl" />, label: "Profile" },
   ];
