@@ -2,11 +2,15 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { useUserStore } from "../../store/useUserStore";
+import { signupWithBypass, createUserProfile } from "../../lib/authUtils";
 import { FaEnvelope, FaLock, FaUser, FaEye, FaEyeSlash, FaArrowRight, FaChevronLeft, FaCheck, FaRocket } from "react-icons/fa";
 
 const SignUp = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const authLoading = useUserStore((s) => s.authLoading);
+  const setAuthLoading = useUserStore((s) => s.setAuthLoading);
+  const setUser = useUserStore((s) => s.setUser);
 
   const [email, setEmail] = useState("");
   const [fullname, setFullname] = useState("");
@@ -35,13 +39,13 @@ const SignUp = () => {
   // Signup handler
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setAuthLoading(true);
     setError("");
     setSuccessMessage("");
 
     if (password !== confirmPass) {
       setError("Passwords do not match.");
-      setLoading(false);
+      setAuthLoading(false);
       return;
     }
 
@@ -59,65 +63,39 @@ const SignUp = () => {
         return;
       }
       
-      // Create a timeout promise (15 seconds)
-      const signupPromise = supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { fullname },
-        },
+      // Signup with email bypass option enabled
+      const { userId } = await signupWithBypass(email, password, fullname, true);
+
+      console.log("✅ [SignUp] Signup successful, user ID:", userId);
+
+      // Update the user store with new user data
+      setUser({
+        id: userId,
+        email: email,
+        name: fullname,
       });
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Signup timeout")), 15000)
-      );
-
-      let data, error;
+      // Create profile entry in database
       try {
-        const result = await Promise.race([signupPromise, timeoutPromise]) as any;
-        data = result?.data;
-        error = result?.error;
-      } catch (timeoutErr) {
-        console.error("🕐 [SignUp] Signup timed out:", timeoutErr);
-        setLoading(false);
-        setError("🔧 Supabase connection timeout. Tip: Try demo@test.com for a demo account.");
-        return;
-      }
-
-      setLoading(false);
-
-      if (error) {
-        console.error("❌ [SignUp] Signup error:", error.message);
-        return setError(error.message);
-      }
-
-      console.log("✅ [SignUp] Signup successful, creating profile...");
-
-      // Create profile entry in database (non-blocking)
-      if (data.user) {
-        supabase.from("profiles").insert({
-          id: data.user.id,
-          email,
-          name: fullname,
-        }).then(({ error: profileError }: { error: any }) => {
-          if (profileError) {
-            console.error("Profile creation error:", profileError);
-          } else {
-            console.log("✅ [SignUp] Profile created");
-          }
-        });
+        await createUserProfile(userId, email, fullname);
+        console.log("✅ [SignUp] Profile created");
+      } catch (profileErr: any) {
+        console.error("❌ Profile creation error:", profileErr?.message);
+        // Don't fail signup if profile creation fails
       }
 
       setSuccessMessage(
-        "Account created! Check your email to confirm your account, then select your campus."
+        "Account created successfully! Select your campus to continue."
       );
       
-      // Navigate immediately without waiting
-      navigate("/auth/campuspicker");
-    } catch (err) {
-      console.error("❌ [SignUp] Unexpected error:", err);
-      setLoading(false);
-      setError("An unexpected error occurred. Please try again.");
+      setAuthLoading(false);
+      
+      // Redirect to campus picker
+      setTimeout(() => navigate("/auth/campuspicker"), 1000);
+    } catch (err: any) {
+      console.error("❌ [SignUp] Signup error:", err);
+      setAuthLoading(false);
+      setError(err?.message || "An unexpected error occurred. Please try again.");
     }
   };
 
@@ -305,11 +283,11 @@ const SignUp = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              disabled={loading}
+              disabled={authLoading}
               type="submit"
               className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 disabled:opacity-50 text-white font-black text-lg py-4 rounded-2xl shadow-2xl shadow-purple-500/50 transition-all duration-300 flex items-center justify-center gap-2 mt-8"
             >
-              {loading ? (
+              {authLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Creating account...

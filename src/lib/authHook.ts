@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "./supabaseClient";
+import { useAuthStore } from "../store/useAuthStore";
 import { useUserStore } from "../store/useUserStore";
 import { useCampusStore } from "../store/useCampusStore";
 
 export const useAuthSession = () => {
   const [loading, setLoading] = useState(true);
+  const initAttempted = useRef(false);
+
   const setUser = useUserStore((s) => s.setUser);
+  const setAuthLoading = useUserStore((s) => s.setAuthLoading);
   const setCampus = useCampusStore((s) => s.setCampus);
   const clearCampus = useCampusStore((s) => s.clearCampus);
 
@@ -13,15 +17,15 @@ export const useAuthSession = () => {
     let isMounted = true;
 
     const initAuth = async () => {
+      // Only run initialization once
+      if (initAttempted.current) return;
+      initAttempted.current = true;
+
       try {
         console.log("🔐 [authHook] Starting auth initialization...");
+        setAuthLoading(true);
         
-        // Set loading to false quickly to unblock UI
-        if (isMounted) {
-          setLoading(false);
-        }
-        
-        // Get current session asynchronously without blocking
+        // Get current session asynchronously
         try {
           const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
           
@@ -31,6 +35,8 @@ export const useAuthSession = () => {
           
           if (sessionError || !sessionData?.session?.user) {
             console.log("🔐 [authHook] No session found");
+            setAuthLoading(false);
+            setLoading(false);
             return;
           }
 
@@ -82,10 +88,17 @@ export const useAuthSession = () => {
         } catch (sessionErr) {
           console.error("🔐 [authHook] Error getting session:", sessionErr);
         }
+        
+        // Auth initialization complete
+        if (isMounted) {
+          setAuthLoading(false);
+          setLoading(false);
+        }
       } catch (err) {
         console.error("❌ [authHook] Auth init error:", err);
         if (isMounted) {
           setLoading(false);
+          setAuthLoading(false);
         }
       }
     };
@@ -148,7 +161,7 @@ export const useAuthSession = () => {
       isMounted = false;
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [setUser, setAuthLoading, setCampus, clearCampus]);
 
   return { loading };
 };

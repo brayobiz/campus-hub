@@ -70,19 +70,25 @@ const CampusPicker = () => {
 
   // Fetch current user profile and redirect if campus exists
   const checkUserCampus = async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id;
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
 
-    if (!userId) return;
+      if (!userId) return;
 
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("campus_id")
-      .eq("id", userId)
-      .single();
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("campus_id")
+        .eq("id", userId)
+        .single();
 
-    if (!error && profile?.campus_id) {
-      navigate("/home"); // Redirect if campus already selected
+      if (!error && profile?.campus_id) {
+        // Add delay to ensure store hydrates before navigation
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        navigate("/home");
+      }
+    } catch (err) {
+      console.warn("Error checking user campus:", err);
     }
   };
 
@@ -108,9 +114,11 @@ const CampusPicker = () => {
 
     try {
       const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
+      const user = userData?.user;
+      const userId = user?.id;
+      const userEmail = user?.email;
 
-      if (!userId) {
+      if (!userId || !userEmail) {
         const msg = "User not found. Please login again.";
         console.error(msg);
         setError(msg);
@@ -120,10 +128,25 @@ const CampusPicker = () => {
 
       console.debug("Setting campus", { userId, campusId });
 
-      // Upsert the profile with the selected campus_id. This will create or update.
-      const { data: upsertData, error: upsertError } = await supabase
+      // Find the selected campus object first (before DB operation)
+      const selected = campuses.find((x) => String(x.id) === String(campusId));
+      if (!selected) {
+        setError("Invalid campus selected.");
+        setUpdating(false);
+        return;
+      }
+
+      // Upsert the profile with the selected campus_id and required email field.
+      const { error: upsertError } = await supabase
         .from("profiles")
-        .upsert({ id: userId, campus_id: campusId }, { returning: "representation" });
+        .upsert(
+          {
+            id: userId,
+            email: userEmail,
+            campus_id: campusId,
+          },
+          { returning: "representation" }
+        );
 
       if (upsertError) {
         console.error("Failed to upsert profile:", upsertError);
@@ -133,17 +156,14 @@ const CampusPicker = () => {
         return;
       }
 
-      console.debug("Upsert result:", upsertData);
+      console.log("✅ Campus updated in database:", selected.name);
 
       // Update local campus store so the app reflects the selection immediately
-      const selected = campuses.find((x) => String(x.id) === String(campusId));
-      if (selected) {
-        try {
-          setCampusStore(selected as any);
-        } catch (e) {
-          console.warn("Failed to set campus in store:", e);
-        }
-      }
+      setCampusStore(selected as any);
+      console.log("✅ Campus updated in store:", selected.name);
+      
+      // Small delay to ensure store is updated and persisted before navigation
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Success
       setUpdating(false);
