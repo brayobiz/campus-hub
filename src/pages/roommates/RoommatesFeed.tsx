@@ -34,7 +34,7 @@ const RoommatesFeed = () => {
             </h1>
             <p className="text-sm text-gray-600 mt-1">Find your perfect campus buddy</p>
           </div>
-          <RefreshCw className="w-6 h-6 text-gray-500 animate-spin-slow" />
+          <RefreshCw className="w-6 h-6 text-gray-500" />
         </div>
       </header>
 
@@ -132,14 +132,14 @@ const RoommatesFeed = () => {
                   {/* Dual Contact Buttons */}
                   <div className="flex gap-3">
                     <a
-                      href={`tel:${post.contact}`}
+                      href={`tel:${post.contact || ""}`}
                       className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-rose-500 to-pink-600 hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                     >
                       <Phone className="w-5 h-5" />
                       Call
                     </a>
                     <a
-                      href={`https://wa.me/${post.contact.replace(/\D/g, "")}`}
+                      href={`https://wa.me/${(post.contact || "").replace(/\D/g, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:shadow-lg transform hover:scale-105 transition-all duration-200"
@@ -155,7 +155,7 @@ const RoommatesFeed = () => {
         )}
       </div>
 
-      <BottomNav />
+      <BottomNav openPostModal={() => {}} />
     </div>
   );
 };

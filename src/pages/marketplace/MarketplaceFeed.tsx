@@ -10,20 +10,15 @@ const MarketplaceFeed = () => {
   const [posts] = useState(marketplacePosts);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Single filter: search in title, description, OR category
   const filteredPosts = posts.filter((post) => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) return true;
-
     return (
       post.title.toLowerCase().includes(query) ||
       post.description.toLowerCase().includes(query) ||
       post.category.toLowerCase().includes(query)
     );
   });
-
-  // Extract unique categories from data (or use static list above)
-  const allCategories = Array.from(new Set(posts.map(p => p.category))).sort();
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -39,12 +34,11 @@ const MarketplaceFeed = () => {
         </div>
       </header>
 
-      {/* Unified Search Bar - Now Fixed & Beautiful */}
+      {/* Search */}
       <div className="sticky top-16 z-40 bg-gray-50/95 backdrop-blur-xl px-4 py-5 border-b border-gray-200">
         <div className="max-w-3xl mx-auto">
           <div className="relative">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none z-10" />
-            
             <input
               type="text"
               placeholder="Search by product, category, or description..."
@@ -52,38 +46,17 @@ const MarketplaceFeed = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-14 pr-12 py-4.5 text-base rounded-2xl border border-gray-300 bg-white shadow-inner focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all placeholder-gray-400 text-gray-900 font-medium"
             />
-
-            {/* Filter icon (visual only - or make it open modal later) */}
             <button className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-gray-100 transition">
               <Filter className="w-5 h-5 text-gray-600" />
             </button>
           </div>
-
-          {/* Optional: Quick category chips below search */}
-          {searchQuery === "" && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-wrap gap-2 mt-4"
-            >
-              {popularCategories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSearchQuery(cat)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-rose-50 hover:border-rose-400 hover:text-rose-600 transition"
-                >
-                  {cat}
-                </button>
-              ))}
-            </motion.div>
-          )}
         </div>
       </div>
 
       {/* Grid */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredPosts.length === 0 ? (
+          {!filteredPosts.length ? (
             <div className="col-span-full text-center py-24">
               <div className="text-4xl mb-4">😔</div>
               <p className="text-xl text-gray-600">No items found</p>
@@ -112,7 +85,7 @@ const MarketplaceFeed = () => {
                     </div>
                   )}
                   <div className="absolute top-3 right-3 bg-black/75 backdrop-blur-sm text-white px-4 py-2 rounded-full font-bold text-sm">
-                    Ksh {post.price.toLocaleString()}
+                    Ksh {(post.price || 0).toLocaleString()}
                   </div>
                 </div>
 
@@ -127,13 +100,13 @@ const MarketplaceFeed = () => {
 
                   <div className="mt-6 flex gap-3">
                     <a
-                      href={`tel:${post.contact}`}
+                      href={`tel:${post.contact || ""}`}
                       className="flex-1 py-3.5 text-center rounded-xl font-bold text-white bg-gradient-to-r from-rose-500 to-purple-600 hover:shadow-lg transform hover:scale-105 transition-all"
                     >
                       Call
                     </a>
                     <a
-                      href={`https://wa.me/${post.contact.replace(/\D/g, "")}`}
+                      href={`https://wa.me/${(post.contact || "").replace(/\D/g, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 py-3.5 text-center rounded-xl font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:shadow-lg transform hover:scale-105 transition-all"
@@ -148,7 +121,7 @@ const MarketplaceFeed = () => {
         </div>
       </div>
 
-      <BottomNav />
+      <BottomNav openPostModal={() => {}} />
     </div>
   );
 };
