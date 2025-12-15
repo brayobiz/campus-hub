@@ -3,110 +3,99 @@ import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useUserStore } from "../../store/useUserStore";
+import { logoutUser } from "../../lib/authUtils";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaChevronLeft } from "react-icons/fa";
 
 const Login = () => {
   const navigate = useNavigate();
+  const authLoading = useUserStore((s) => s.authLoading);
+  const setAuthLoading = useUserStore((s) => s.setAuthLoading);
   const setUser = useUserStore((s) => s.setUser);
-  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  const handleResendConfirmation = async () => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/campuspicker`,
+        },
+      });
+
+      if (error) {
+        setError("Failed to resend confirmation email: " + error.message);
+      } else {
+        setSuccessMessage("Confirmation email sent! Check your inbox.");
+      }
+    } catch (err) {
+      console.error("Error resending confirmation:", err);
+      setError("Failed to resend confirmation email");
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setSuccessMessage("");
+    setAuthLoading(true);
+
+    if (!email || !password) {
+      setError("Please enter email and password");
+      setAuthLoading(false);
+      return;
+    }
 
     try {
       console.log("🔐 [Login] Starting login...");
-      console.log("🔐 [Login] Email:", email);
       
-      // Development mode - allow demo login
-      if (email === "demo@test.com" && password === "demo123") {
-        console.log("✅ [Login] Demo login successful");
-        setUser({
-          id: "demo-user-id",
-          email: "demo@test.com",
-          name: "Demo User",
-        });
-        setSuccessMessage("Demo login successful! Redirecting...");
-        setTimeout(() => navigate("/home"), 300);
-        return;
-      }
-      
-      // Create a timeout promise (15 seconds)
-      const loginPromise = supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Login timeout")), 15000)
-      );
-
-      let data, error;
-      try {
-        const result = await Promise.race([loginPromise, timeoutPromise]) as any;
-        data = result?.data;
-        error = result?.error;
-      } catch (timeoutErr) {
-        console.error("🕐 [Login] Login timed out:", timeoutErr);
-        setLoading(false);
-        setError("🔧 Supabase connection timeout. Tip: Try demo@test.com / demo123 for a demo session.");
-        return;
-      }
-
-      setLoading(false);
-
       if (error) {
         console.error("❌ [Login] Login error:", error.message);
-        if (error.message.toLowerCase().includes("email not confirmed")) {
-          setError("Email not confirmed. Check your inbox for the confirmation link.");
-        } else if (error.message.toLowerCase().includes("invalid login credentials")) {
+        if (error.message?.toLowerCase().includes("invalid login credentials")) {
           setError("Invalid email or password. Please try again.");
+        } else if (error.message?.toLowerCase().includes("email not confirmed")) {
+          setError("Email not confirmed. Check your inbox for the confirmation link.");
         } else {
-          setError(error.message || "An error occurred. Please try again.");
+          setError(error.message || "Login failed. Please try again.");
         }
+        setAuthLoading(false);
         return;
       }
 
-      console.log("✅ [Login] Login successful, redirecting...");
-      
-      // Set user in store
-      if (data.user) {
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.user_metadata?.fullname,
-        });
-        setSuccessMessage("Welcome back! Redirecting...");
+      if (!data?.user?.id) {
+        setError("Login failed - no user returned from Supabase.");
+        setAuthLoading(false);
+        return;
       }
 
-      // Redirect immediately (don't wait for async operations)
-      navigate("/home");
+      console.log("✅ [Login] Login successful");
+      
+      // Update user store
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.user_metadata?.fullname,
+      });
+
+      setSuccessMessage("Login successful! Redirecting...");
+      setAuthLoading(false);
+      
+      setTimeout(() => {
+        navigate("/home");
+      }, 800);
     } catch (err) {
       console.error("❌ [Login] Unexpected error:", err);
-      setLoading(false);
       setError("An unexpected error occurred. Please try again.");
-    }
-  };
-
-  const handleResendConfirmation = async () => {
-    if (!email) {
-      setError("Please enter your email address first.");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.resend({ type: "signup", email });
-    setLoading(false);
-    if (error) {
-      setError("Failed to resend confirmation email.");
-    } else {
-      setSuccessMessage("Confirmation email resent! Check your inbox.");
+      setAuthLoading(false);
     }
   };
 
@@ -236,10 +225,11 @@ const Login = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              disabled={loading}
+              type="submit"
+              disabled={authLoading}
               className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 disabled:opacity-50 text-white font-black text-lg py-4 rounded-2xl shadow-2xl shadow-orange-500/50 transition-all duration-300 flex items-center justify-center gap-2 mt-8"
             >
-              {loading ? (
+              {authLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Logging in...

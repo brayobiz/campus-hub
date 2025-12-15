@@ -10,6 +10,9 @@ import Explore from "./pages/Explore";
 import Alerts from "./pages/Alerts";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
+import Notifications from "./pages/Notifications";
 
 import ConfessionsFeed from "./pages/confessions/ConfessionsFeed";
 import PostConfession from "./pages/confessions/post/PostConfession";
@@ -29,8 +32,9 @@ import PostNote from "./pages/notes/post/PostNote";
 import RoommatesFeed from "./pages/roommates/RoommatesFeed";
 import PostRoommate from "./pages/roommates/post/PostRoommate";
 import PostModal from "./components/PostModal";
+import ErrorBoundary from "./components/ErrorBoundary";
 
-const App = () => {
+const AppContent = () => {
   const { loading } = useAuthSession();
 
   // Show loading state while checking auth
@@ -94,6 +98,26 @@ const App = () => {
             <ProtectedRoute>
               <Settings />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <Notifications />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/privacy-policy"
+          element={
+            <PrivacyPolicy />
+          }
+        />
+        <Route
+          path="/terms-and-conditions"
+          element={
+            <TermsAndConditions />
           }
         />
 
@@ -200,6 +224,14 @@ const App = () => {
         />
       </Routes>
     </>
+  );
+};
+
+const App = () => {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 };
 
