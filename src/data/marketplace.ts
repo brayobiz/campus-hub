@@ -1,48 +1,12 @@
-// src/data/marketplace.ts
-export const marketplacePosts = [
-  {
-    id: 1,
-    title: "MacBook Air 2023",
-    description: "Lightly used MacBook Air, 16GB RAM, 512GB SSD. Perfect for students and professionals.",
-    price: 1200,
-    category: "Electronics",
-    images: ["https://via.placeholder.com/400x300?text=MacBook+Air"],
-    contact: "+254700111222",
-  },
-  {
-    id: 2,
-    title: "Used Textbooks Bundle",
-    description: "A bundle of second-hand CBC textbooks for KCPE prep. Good condition.",
-    price: 50,
-    category: "Books",
-    images: ["https://via.placeholder.com/400x300?text=Textbooks"],
-    contact: "+254700333444",
-  },
-  {
-    id: 3,
-    title: "Gaming Chair",
-    description: "Ergonomic chair for long gaming sessions or studying. Black and red.",
-    price: 150,
-    category: "Furniture",
-    images: ["https://via.placeholder.com/400x300?text=Gaming+Chair"],
-    contact: "+254700555666",
-  },
-  {
-    id: 4,
-    title: "Electric Kettle",
-    description: "1.5L stainless steel electric kettle, works perfectly, barely used.",
-    price: 30,
-    category: "Appliances",
-    images: ["https://via.placeholder.com/400x300?text=Kettle"],
-    contact: "+254700777888",
-  },
-  {
-    id: 5,
-    title: "Campus Hoodie",
-    description: "KU branded hoodie, size L. Warm and comfy, perfect for cold mornings.",
-    price: 25,
-    category: "Clothing",
-    images: ["https://via.placeholder.com/400x300?text=Hoodie"],
-    contact: "+254700999000",
-  },
-];
+// src/data/marketplace.ts - Data fetched from Supabase at runtime, no mock data
+export type MarketplacePost = {
+	id: string;
+	title: string;
+	description: string;
+	category: string;
+	images?: string[];
+	price?: number;
+	contact?: string;
+};
+
+export const marketplacePosts: MarketplacePost[] = [];
