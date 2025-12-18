@@ -3,10 +3,12 @@ import PostForm from "../../../components/post/PostForm";
 import { supabase } from "../../../lib/supabaseClient";
 import { useCampusStore } from "../../../store/useCampusStore";
 import { useUserStore } from "../../../store/useUserStore";
+import { useNavigate } from "react-router-dom";
 
 const PostRoommate = () => {
   const campus = useCampusStore((s) => s.campus);
   const user = useUserStore((s) => s.user);
+  const navigate = useNavigate();
 
   const fields = [
     { name: "title", label: "Post Title", type: "text", required: true },
@@ -77,6 +79,7 @@ const PostRoommate = () => {
       fields={fields}
       submitUrl="" // Not used
       onBeforeSubmit={handleSubmit}
+      onSuccess={() => navigate("/roommates")}
     />
   );
 };

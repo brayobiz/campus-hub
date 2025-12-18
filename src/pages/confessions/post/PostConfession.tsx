@@ -3,10 +3,12 @@ import PostForm from "../../../components/post/PostForm";
 import { supabase } from "../../../lib/supabaseClient";
 import { useCampusStore } from "../../../store/useCampusStore";
 import { useUserStore } from "../../../store/useUserStore";
+import { useNavigate } from "react-router-dom";
 
 const PostConfession = () => {
   const campus = useCampusStore((s) => s.campus);
   const user = useUserStore((s) => s.user);
+  const navigate = useNavigate();
 
   const fields = [
     { name: "content", label: "Your Confession", type: "textarea", required: true },
@@ -38,6 +40,7 @@ const PostConfession = () => {
       fields={fields}
       submitUrl="" // Not used
       onBeforeSubmit={handleSubmit}
+      onSuccess={() => navigate("/confessions")}
     />
   );
 };

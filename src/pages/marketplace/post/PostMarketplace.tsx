@@ -3,10 +3,12 @@ import PostForm from "../../../components/post/PostForm";
 import { supabase } from "../../../lib/supabaseClient";
 import { useCampusStore } from "../../../store/useCampusStore";
 import { useUserStore } from "../../../store/useUserStore";
+import { useNavigate } from "react-router-dom";
 
 const PostMarketplace = () => {
   const campus = useCampusStore((s) => s.campus);
   const user = useUserStore((s) => s.user);
+  const navigate = useNavigate();
 
   const fields = [
     {
@@ -110,6 +112,7 @@ const PostMarketplace = () => {
       fields={fields}
       submitUrl="" // Not used since we handle submission
       onBeforeSubmit={handleSubmit}
+      onSuccess={() => navigate("/marketplace")}
     />
   );
 };

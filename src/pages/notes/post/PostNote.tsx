@@ -3,12 +3,14 @@ import { useState } from "react";
 import PostForm from "../../../components/post/PostForm";
 import { useCampusStore } from "../../../store/useCampusStore"; // Zustand store
 import { useUserStore } from "../../../store/useUserStore";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../../lib/supabaseClient";
 import { School } from "lucide-react";
 
 const PostNote = () => {
   const campus = useCampusStore((state) => state.campus);
   const user = useUserStore((s) => s.user);
+  const navigate = useNavigate();
   const [courseInput, setCourseInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -164,7 +166,10 @@ const PostNote = () => {
           if (error) throw error;
           return true;
         }}
-        onSuccess={() => setCourseInput("")}
+        onSuccess={() => {
+          setCourseInput("");
+          navigate("/notes");
+        }}
       />
     </>
   );

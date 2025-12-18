@@ -15,7 +15,7 @@ interface Field {
 interface PostFormProps {
   title: string;
   fields: Field[];
-  submitUrl: string;
+  submitUrl?: string;
   onBeforeSubmit?: (formData: FormData) => boolean | Promise<boolean>;
   onSuccess?: () => void;
 }
@@ -24,6 +24,7 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -57,15 +58,11 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
         }
       }
 
-      if (submitUrl) {
-        const res = await fetch(submitUrl, { method: "POST", body: payload });
-        if (!res.ok) throw new Error("Failed to submit");
-      }
-
       if (onSuccess) onSuccess();
 
-      alert("Submitted successfully!");
+      setSuccess("Submitted successfully!");
       setFormData({});
+      setTimeout(() => setSuccess(null), 3000); // Auto-hide after 3 seconds
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -99,6 +96,16 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
                 className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl"
               >
                 <p className="text-red-700 font-semibold text-sm">{error}</p>
+              </motion.div>
+            )}
+
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl"
+              >
+                <p className="text-green-700 font-semibold text-sm">{success}</p>
               </motion.div>
             )}
 
