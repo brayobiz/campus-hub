@@ -2,10 +2,13 @@
 import { useState } from "react";
 import PostForm from "../../../components/post/PostForm";
 import { useCampusStore } from "../../../store/useCampusStore"; // Zustand store
+import { useUserStore } from "../../../store/useUserStore";
+import { supabase } from "../../../lib/supabaseClient";
 import { School } from "lucide-react";
 
 const PostNote = () => {
   const campus = useCampusStore((state) => state.campus);
+  const user = useUserStore((s) => s.user);
   const [courseInput, setCourseInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -110,17 +113,55 @@ const PostNote = () => {
       <PostForm
         title="Upload Notes / Past Papers"
         fields={fields}
-        submitUrl="/api/notes"
-        onBeforeSubmit={(formData) => {
-          if (!courseInput.trim()) {
-            alert("Please enter a valid course code");
-            return false;
+        submitUrl="" // Not used
+        onBeforeSubmit={async (formData) => {
+          if (!user?.id || !campus?.id) {
+            throw new Error("Please login and select a campus first");
           }
 
-          formData.set("campusId", campus.id ?? "");
-          formData.set("campusName", campus.name);
-          formData.set("course", courseInput.trim().toUpperCase());
+          if (!courseInput.trim()) {
+            throw new Error("Please enter a valid course code");
+          }
 
+          const title = formData.get("title") as string;
+          const year = formData.get("year") as string;
+          const description = formData.get("description") as string;
+          const file = formData.get("file") as File;
+
+          if (!file || file.size === 0) {
+            throw new Error("Please select a file to upload");
+          }
+
+          // Upload file to Supabase Storage
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const filePath = `notes/${user.id}/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('uploads')
+            .upload(filePath, file);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('uploads')
+            .getPublicUrl(filePath);
+
+          // Save to Supabase
+          const { error } = await supabase
+            .from("notes")
+            .insert([{
+              title,
+              course: courseInput.trim().toUpperCase(),
+              year,
+              file: publicUrl,
+              filename: file.name,
+              description,
+              campus_id: campus.id,
+              user_id: user.id,
+            }]);
+
+          if (error) throw error;
           return true;
         }}
         onSuccess={() => setCourseInput("")}

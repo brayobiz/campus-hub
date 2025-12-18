@@ -1,15 +1,83 @@
 // src/pages/roommates/RoommatesFeed.tsx
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Search, MapPin, Users, Phone, MessageCircle, RefreshCw } from "lucide-react";
-import { roommatePosts } from "../../data/roommates";
+import { supabase } from "../../lib/supabaseClient";
+import { useCampusStore } from "../../store/useCampusStore";
 import BottomNav from "../../components/BottomNav";
 
-type RoommatePost = (typeof roommatePosts)[0];
+type RoommatePost = {
+  id: string;
+  title?: string;
+  campus?: string;
+  roomType?: string;
+  description?: string;
+  image?: string;
+  budget?: number;
+  contact?: string;
+  created_at: string;
+  campus_id: string;
+  user_id: string;
+};
 
 const RoommatesFeed = () => {
-  const [posts] = useState(roommatePosts);
+  const [posts, setPosts] = useState<RoommatePost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const campus = useCampusStore((s) => s.campus);
+
+  useEffect(() => {
+    fetchRoommatePosts();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('roommates_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'roommates',
+        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+      }, (payload: any) => {
+        console.log('Roommates realtime update:', payload);
+        fetchRoommatePosts();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [campus?.id]);
+
+  const fetchRoommatePosts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!campus?.id) {
+        setError("Please select a campus first");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("roommates")
+        .select("*")
+        .eq("campus_id", campus.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (fetchError) throw fetchError;
+
+      setPosts(data || []);
+    } catch (err) {
+      console.error("Error fetching roommate posts:", err);
+      setError("Failed to load roommate listings");
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Unified search across name, campus, roomType, description
   const filteredPosts = useMemo(() => {
@@ -56,8 +124,35 @@ const RoommatesFeed = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-5 py-10">
+        {/* Error */}
+        {error && (
+          <div className="text-center py-20">
+            <div className="text-4xl mb-6">⚠️</div>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <button onClick={fetchRoommatePosts} className="px-8 py-3 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition">
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* Loading Skeleton */}
+        {loading && posts.length === 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden animate-pulse">
+                <div className="h-48 bg-gray-200"></div>
+                <div className="p-6">
+                  <div className="h-6 bg-gray-200 rounded mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Empty State */}
-        {filteredPosts.length === 0 && (
+        {!loading && !error && filteredPosts.length === 0 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -76,7 +171,7 @@ const RoommatesFeed = () => {
         )}
 
         {/* Roommates Grid */}
-        {filteredPosts.length > 0 && (
+        {!loading && !error && filteredPosts.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {filteredPosts.map((post, i) => (
               <motion.article

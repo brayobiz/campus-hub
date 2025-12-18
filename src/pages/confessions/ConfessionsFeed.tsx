@@ -50,6 +50,24 @@ const ConfessionsFeed = () => {
 
   useEffect(() => {
     fetchConfessions();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('confessions_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'confessions',
+        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+      }, (payload: any) => {
+        console.log('Confessions realtime update:', payload);
+        fetchConfessions(); // Refetch on any change
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [campus?.id]);
 
   const fetchConfessions = async () => {

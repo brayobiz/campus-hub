@@ -1,14 +1,83 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Filter } from "lucide-react";
 import BottomNav from "../../components/BottomNav";
-import { marketplacePosts } from "../../data/marketplace";
+import { supabase } from "../../lib/supabaseClient";
+import { useCampusStore } from "../../store/useCampusStore";
+
+type MarketplacePost = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  images?: string[];
+  price?: number;
+  contact?: string;
+  created_at: string;
+  campus_id: string;
+  user_id: string;
+};
 
 const popularCategories = ["Electronics", "Fashion", "Books", "Furniture", "Vehicles", "Sports"];
 
 const MarketplaceFeed = () => {
-  const [posts] = useState(marketplacePosts);
+  const [posts, setPosts] = useState<MarketplacePost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const campus = useCampusStore((s) => s.campus);
+
+  useEffect(() => {
+    fetchMarketplacePosts();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('marketplace_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'marketplace',
+        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+      }, (payload: any) => {
+        console.log('Marketplace realtime update:', payload);
+        fetchMarketplacePosts();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [campus?.id]);
+
+  const fetchMarketplacePosts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!campus?.id) {
+        setError("Please select a campus first");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("marketplace")
+        .select("*")
+        .eq("campus_id", campus.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (fetchError) throw fetchError;
+
+      setPosts(data || []);
+    } catch (err) {
+      console.error("Error fetching marketplace posts:", err);
+      setError("Failed to load marketplace items");
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPosts = posts.filter((post) => {
     const query = searchQuery.toLowerCase().trim();
@@ -55,15 +124,44 @@ const MarketplaceFeed = () => {
 
       {/* Grid */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {!filteredPosts.length ? (
-            <div className="col-span-full text-center py-24">
-              <div className="text-4xl mb-4">😔</div>
-              <p className="text-xl text-gray-600">No items found</p>
-              <p className="text-gray-500 mt-2">Try searching for something else</p>
-            </div>
-          ) : (
-            filteredPosts.map((post, i) => (
+        {/* Error */}
+        {error && (
+          <div className="text-center py-20">
+            <div className="text-4xl mb-6">⚠️</div>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <button onClick={fetchMarketplacePosts} className="px-8 py-3 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition">
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* Loading Skeleton */}
+        {loading && posts.length === 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-100 animate-pulse">
+                <div className="h-48 bg-gray-200"></div>
+                <div className="p-5">
+                  <div className="h-6 bg-gray-200 rounded mb-3"></div>
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Grid */}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {!filteredPosts.length ? (
+              <div className="col-span-full text-center py-24">
+                <div className="text-4xl mb-4">😔</div>
+                <p className="text-xl text-gray-600">No items found</p>
+                <p className="text-gray-500 mt-2">Try searching for something else</p>
+              </div>
+            ) : (
+              filteredPosts.map((post, i) => (
               <motion.article
                 key={post.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -119,6 +217,7 @@ const MarketplaceFeed = () => {
             ))
           )}
         </div>
+        )}
       </div>
 
       <BottomNav openPostModal={() => {}} />

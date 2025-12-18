@@ -5,6 +5,8 @@
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS year TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS major TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_all_campuses BOOLEAN DEFAULT FALSE;
 
 -- Add index on campus_id for faster lookups
@@ -14,6 +16,8 @@ CREATE INDEX IF NOT EXISTS idx_profiles_campus_id ON profiles(campus_id);
 COMMENT ON COLUMN profiles.phone IS 'User phone number for verification';
 COMMENT ON COLUMN profiles.bio IS 'User bio/description';
 COMMENT ON COLUMN profiles.avatar_url IS 'URL to user avatar image';
+COMMENT ON COLUMN profiles.year IS 'Academic year (1st, 2nd, 3rd, etc)';
+COMMENT ON COLUMN profiles.major IS 'Field of study/course';
 COMMENT ON COLUMN profiles.show_all_campuses IS 'Whether user wants to see content from all campuses';
 -- Migration: Complete user profile schema enhancements
 -- Purpose: Support comprehensive user profiles with multiple email types, verification tracking, and campus info
@@ -22,6 +26,8 @@ COMMENT ON COLUMN profiles.show_all_campuses IS 'Whether user wants to see conte
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS year TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS major TEXT;
 
 -- PHASE 2: Add school/institutional email support
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS school_email TEXT UNIQUE;
@@ -54,6 +60,8 @@ CREATE INDEX IF NOT EXISTS idx_campuses_email_domain ON campuses(email_domain);
 COMMENT ON COLUMN profiles.phone IS 'User phone number for contact/verification';
 COMMENT ON COLUMN profiles.bio IS 'User bio or description';
 COMMENT ON COLUMN profiles.avatar_url IS 'URL to user profile picture';
+COMMENT ON COLUMN profiles.year IS 'Academic year (1st, 2nd, 3rd, etc)';
+COMMENT ON COLUMN profiles.major IS 'Field of study/course';
 COMMENT ON COLUMN profiles.school_email IS 'School/institutional email for campus verification';
 COMMENT ON COLUMN profiles.email_verified IS 'Is personal email (from signup) verified?';
 COMMENT ON COLUMN profiles.email_verified_at IS 'When personal email was verified';

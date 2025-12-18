@@ -2,18 +2,22 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Search, FileText, Download, MessageCircle, RefreshCw, BookOpen, FileDown } from "lucide-react";
+import { supabase } from "../../lib/supabaseClient";
+import { useCampusStore } from "../../store/useCampusStore";
 import BottomNav from "../../components/BottomNav";
 
 type Note = {
-  id: string | number;
+  id: string;
   title: string;
   course: string;
   year?: string;
-  file: string;        // URL to file (PDF, image, doc, etc.)
-  filename?: string;   // Original filename for clean download
+  file: string;        // URL to file
+  filename?: string;   // Original filename
   description?: string;
   contact?: string;
-  createdAt?: string;
+  created_at: string;
+  campus_id: string;
+  user_id: string;
 };
 
 const NotesFeed = () => {
@@ -21,18 +25,33 @@ const NotesFeed = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const campus = useCampusStore((s) => s.campus);
 
   const fetchNotes = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/notes");
-      if (!res.ok) throw new Error("Failed to load notes");
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data.notes || [];
-      setNotes(list);
+
+      if (!campus?.id) {
+        setError("Please select a campus first");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("notes")
+        .select("*")
+        .eq("campus_id", campus.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (fetchError) throw fetchError;
+
+      setNotes(data || []);
     } catch (err) {
+      console.error("Error fetching notes:", err);
       setError("Could not load notes & past papers.");
+      setNotes([]);
     } finally {
       setLoading(false);
     }
@@ -40,7 +59,25 @@ const NotesFeed = () => {
 
   useEffect(() => {
     fetchNotes();
-  }, []);
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('notes_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notes',
+        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+      }, (payload: any) => {
+        console.log('Notes realtime update:', payload);
+        fetchNotes();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [campus?.id]);
 
   const filteredNotes = useMemo(() => {
     if (!searchQuery.trim()) return notes;
@@ -124,13 +161,9 @@ const NotesFeed = () => {
             <h2 className="text-3xl font-bold text-gray-800 mb-4">
               {searchQuery ? "No notes found" : "No notes uploaded yet"}
             </h2>
-            <p className="text-gray-600 text-lg max-w-md mx-auto mb-10">
+            <p className="text-gray-600 text-lg max-w-md mx-auto">
               Be the first to help your classmates!
             </p>
-            <a href="/notes/post" className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition">
-              <FileText className="w-6 h-6" />
-              Upload Notes
-            </a>
           </motion.div>
         )}
 

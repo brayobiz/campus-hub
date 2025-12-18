@@ -8,6 +8,9 @@ import {
   FaCheckCircle,
   FaTrash,
   FaClock,
+  FaExclamationCircle,
+  FaSync,
+  FaWifi,
 } from "react-icons/fa";
 import { supabase } from "../lib/supabaseClient";
 import { useUserStore } from "../store/useUserStore";
@@ -30,11 +33,31 @@ const Notifications = () => {
   const user = useUserStore((s) => s.user);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ hasError: boolean; message: string; type: 'network' | 'database' | 'unknown' } | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2;
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
   useEffect(() => {
     fetchNotifications();
+
+    // Set up realtime subscription for notifications
+    const channel = supabase
+      .channel('notifications_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+      }, (payload: any) => {
+        console.log('Notifications realtime update:', payload);
+        fetchNotifications(); // Refetch on any change
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   const fetchNotifications = async () => {
@@ -71,13 +94,37 @@ const Notifications = () => {
       }));
 
       setNotifications(formattedNotifications);
-    } catch (err) {
+      setRetryCount(0); // Reset retry count on success
+    } catch (err: any) {
       console.error("Error fetching notifications:", err);
-      setError("Failed to load notifications. Using mock data for demo.");
-      // Mock notifications for demo
-      setNotifications(getMockNotifications());
+
+      // Determine error type and user-friendly message
+      let errorType: 'network' | 'database' | 'unknown' = 'unknown';
+      let errorMessage = "Unable to load notifications. Please try again.";
+
+      if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+        errorType = 'network';
+        errorMessage = "Connection lost. Check your internet and try again.";
+      } else if (err.message?.includes('permission') || err.message?.includes('auth')) {
+        errorType = 'database';
+        errorMessage = "Unable to access your notifications. Please refresh the page.";
+      } else if (err.message?.includes('timeout')) {
+        errorType = 'network';
+        errorMessage = "Request timed out. Please try again.";
+      }
+
+      setError({ hasError: true, message: errorMessage, type: errorType });
+      // Don't fall back to mock data - show error instead
+      setNotifications([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    if (retryCount < MAX_RETRIES) {
+      setRetryCount(prev => prev + 1);
+      fetchNotifications();
     }
   };
 
@@ -266,10 +313,37 @@ const Notifications = () => {
               </div>
               <p className="text-gray-600 font-semibold">Loading notifications...</p>
             </div>
-          ) : error ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center mb-6">
-              <p className="text-amber-900 font-semibold">{error}</p>
-            </div>
+          ) : error?.hasError ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12"
+            >
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-full mb-6">
+                {error.type === 'network' ? (
+                  <FaWifi className="w-8 h-8 text-red-500" />
+                ) : (
+                  <FaExclamationCircle className="w-8 h-8 text-red-500" />
+                )}
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">
+                {error.type === 'network' ? 'Connection Issue' : 'Something went wrong'}
+              </h3>
+              <p className="text-gray-600 mb-6 max-w-sm mx-auto">{error.message}</p>
+              {retryCount < MAX_RETRIES && (
+                <p className="text-xs text-gray-500 mb-4">
+                  Attempt {retryCount + 1} of {MAX_RETRIES + 1}
+                </p>
+              )}
+              <button
+                onClick={handleRetry}
+                disabled={loading || retryCount >= MAX_RETRIES}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaSync className={`text-sm ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Retrying...' : retryCount >= MAX_RETRIES ? 'Max Retries Reached' : 'Try Again'}
+              </button>
+            </motion.div>
           ) : filteredNotifications.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}

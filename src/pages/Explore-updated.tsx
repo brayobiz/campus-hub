@@ -1,13 +1,124 @@
 // src/pages/Explore.tsx — 1 MONTH FREE EDITION (FINAL)
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaSearch, FaCrown, FaFire, FaShoppingBag, FaCalendarAlt, FaBookOpen, FaHome, FaStar } from "react-icons/fa";
+import { FaSearch, FaCrown, FaFire, FaShoppingBag, FaCalendarAlt, FaBookOpen, FaHome, FaStar, FaHeart, FaComment, FaUsers, FaUtensils } from "react-icons/fa";
 import BottomNav from "../components/BottomNav";
-import featureFeed from "../data/featureFeed";
-import { marketplacePosts } from "../data/marketplace";
-import { roommatePosts } from "../data/roommates";
+import { supabase } from "../lib/supabaseClient";
+import { useCampusStore } from "../store/useCampusStore";
+
+type RecentPost = {
+  id: string;
+  title: string;
+  description?: string;
+  price?: number;
+  images?: string[];
+  created_at: string;
+  type: 'marketplace' | 'events' | 'roommates' | 'food' | 'notes' | 'confessions';
+  likes_count?: number;
+  comments_count?: number;
+};
 
 const Explore = () => {
-  // Populate the Explore page with multiple content sections
+  const campus = useCampusStore((s) => s.campus);
+  const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [roommates, setRoommates] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchRecentPosts();
+
+    // Set up realtime subscriptions for all tables
+    const channels = [
+      'marketplace', 'events', 'roommates', 'food', 'notes', 'confessions'
+    ].map(table => 
+      supabase
+        .channel(`${table}_explore`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table,
+          filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+        }, () => {
+          console.log(`Explore realtime update from ${table}`);
+          fetchRecentPosts();
+        })
+        .subscribe()
+    );
+
+    return () => {
+      channels.forEach(channel => supabase.removeChannel(channel));
+    };
+  }, [campus?.id]);
+
+  const fetchRecentPosts = async () => {
+    if (!campus?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch recent posts from all tables
+      const [marketplace, events, roommates, food, notes, confessions] = await Promise.all([
+        supabase.from('marketplace').select('id, title, description, price, images, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
+        supabase.from('events').select('id, title, description, banner, created_at').eq('campus_id', campus.id).order('date', { ascending: true }).limit(3),
+        supabase.from('roommates').select('id, title, description, image, roomType, budget, campus, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
+        supabase.from('food').select('id, name, description, price, image, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
+        supabase.from('notes').select('id, title, description, file, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
+        supabase.from('confessions').select('id, content, likes_count, comments_count, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
+      ]);
+
+      const allPosts: RecentPost[] = [
+        ...((marketplace.data || []).map((p: any) => ({ ...p, type: 'marketplace' as const }))),
+        ...((events.data || []).map((p: any) => ({ ...p, title: p.title, description: p.description, images: p.banner ? [p.banner] : undefined, type: 'events' as const }))),
+        ...((roommates.data || []).map((p: any) => ({ ...p, images: p.image ? [p.image] : undefined, type: 'roommates' as const }))),
+        ...((food.data || []).map((p: any) => ({ ...p, title: p.name, images: p.image ? [p.image] : undefined, type: 'food' as const }))),
+        ...((notes.data || []).map((p: any) => ({ ...p, type: 'notes' as const }))),
+        ...((confessions.data || []).map((p: any) => ({ ...p, title: 'Anonymous Confession', description: p.content, type: 'confessions' as const, likes_count: p.likes_count, comments_count: p.comments_count }))),
+      ];
+
+      // Sort by created_at and take top 12
+      const sortedPosts = allPosts
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 12);
+
+      setRecentPosts(sortedPosts);
+      setRoommates(roommates.data || []);
+    } catch (err) {
+      console.error("Error fetching explore posts:", err);
+      setError("Failed to load recent activity");
+      setRecentPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPostIcon = (type: string) => {
+    switch (type) {
+      case 'marketplace': return <FaShoppingBag className="text-emerald-500" />;
+      case 'events': return <FaCalendarAlt className="text-blue-500" />;
+      case 'roommates': return <FaUsers className="text-purple-500" />;
+      case 'food': return <FaUtensils className="text-orange-500" />;
+      case 'notes': return <FaBookOpen className="text-indigo-500" />;
+      case 'confessions': return <FaHeart className="text-red-500" />;
+      default: return <FaStar className="text-gray-500" />;
+    }
+  };
+
+  const getPostTypeLabel = (type: string) => {
+    switch (type) {
+      case 'marketplace': return 'Marketplace';
+      case 'events': return 'Event';
+      case 'roommates': return 'Roommate';
+      case 'food': return 'Food';
+      case 'notes': return 'Notes';
+      case 'confessions': return 'Confession';
+      default: return 'Post';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-orange-50 pb-24">
@@ -59,48 +170,115 @@ const Explore = () => {
         </motion.div>
       </section>
 
-        {/* Feature Grid */}
-        <section className="px-4 sm:px-6 mt-6 sm:mt-8">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-            {featureFeed.map((f, i) => (
-              <div
-                key={i}
-                className={`p-3 sm:p-4 rounded-2xl ${f.bg} border border-gray-100 shadow-sm hover:scale-105 transition-transform`}
-              >
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-2 rounded-lg bg-white/95 text-orange-600 text-lg sm:text-2xl shadow-sm flex-shrink-0">{f.icon}</div>
-                  <div className="min-w-0">
-                    <div className="font-bold text-gray-900 text-xs sm:text-sm break-words">{f.title}</div>
-                    <div className="text-xs text-gray-600 hidden sm:block">{f.description}</div>
-                  </div>
+      {/* Recent Activity */}
+      <section className="px-4 sm:px-6 mt-6 sm:mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg sm:text-xl font-black">Recent Activity</h3>
+          <p className="text-xs sm:text-sm text-gray-500">Live updates</p>
+        </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-10">
+            <p className="text-gray-600">{error}</p>
+          </div>
+        )}
+
+        {/* Loading Skeleton */}
+        {loading && recentPosts.length === 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 shadow-md border animate-pulse">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
+                  <div className="h-4 bg-gray-200 rounded w-20"></div>
                 </div>
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-3/4"></div>
               </div>
             ))}
           </div>
-        </section>
+        )}
 
-        {/* Marketplace Preview */}
-        <section className="px-4 sm:px-6 mt-8 sm:mt-10">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg sm:text-xl font-black">Marketplace</h3>
-            <p className="text-xs sm:text-sm text-gray-500">Top deals near you</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            {marketplacePosts.slice(0, 4).map((m: any) => (
-              <div key={m.id} className="bg-white rounded-2xl p-3 sm:p-4 shadow-md border">
-                <div className="flex gap-3 sm:gap-4 items-start">
-                  <img src={m.images?.[0]} alt={m.title} className="w-24 h-16 sm:w-28 sm:h-20 object-cover rounded-lg flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-gray-900 text-sm break-words">{m.title}</div>
-                    <div className="text-xs text-gray-600 mt-1 break-words">{m.description}</div>
-                    <div className="mt-2 font-black text-orange-600 text-sm">KSh {m.price}</div>
-                  </div>
-                </div>
+        {/* Recent Posts Grid */}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recentPosts.length === 0 ? (
+              <div className="col-span-full text-center py-10">
+                <FaFire className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600">No recent activity yet</p>
               </div>
-            ))}
+            ) : (
+              recentPosts.map((post, i) => (
+                <motion.div
+                  key={`${post.type}-${post.id}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="bg-white rounded-2xl p-4 shadow-md border border-gray-100 hover:shadow-lg transition-shadow"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-gray-100 rounded-lg">
+                      {getPostIcon(post.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        {getPostTypeLabel(post.type)}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(post.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <h4 className="font-bold text-gray-900 text-sm mb-2 line-clamp-2">
+                    {post.title}
+                  </h4>
+
+                  {post.description && (
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                      {post.description}
+                    </p>
+                  )}
+
+                  {post.price && (
+                    <p className="font-bold text-orange-600 text-sm">
+                      KSh {post.price.toLocaleString()}
+                    </p>
+                  )}
+
+                  {post.type === 'confessions' && (
+                    <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
+                      {post.likes_count && (
+                        <div className="flex items-center gap-1">
+                          <FaHeart className="text-red-500" />
+                          <span>{post.likes_count}</span>
+                        </div>
+                      )}
+                      {post.comments_count && (
+                        <div className="flex items-center gap-1">
+                          <FaComment className="text-blue-500" />
+                          <span>{post.comments_count}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {post.images && post.images[0] && (
+                    <div className="mt-3">
+                      <img
+                        src={post.images[0]}
+                        alt={post.title}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
+                </motion.div>
+              ))
+            )}
           </div>
-        </section>
+        )}
+      </section>
 
         {/* Events & Notes */}
         <section className="px-4 sm:px-6 mt-8 sm:mt-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -141,7 +319,7 @@ const Explore = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-            {roommatePosts.map((r: any) => (
+            {(roommates || []).map((r: any) => (
               <div key={r.id} className="bg-white rounded-2xl p-3 sm:p-4 shadow-md border">
                 <img src={r.image} alt={r.campus} className="w-full h-28 sm:h-36 object-cover rounded-lg mb-2 sm:mb-3" />
                 <div className="font-bold text-sm break-words">{r.roomType} · KSh {r.budget}</div>

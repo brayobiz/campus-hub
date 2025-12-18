@@ -2,38 +2,80 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Search, Phone, MessageCircle, RefreshCw, Utensils } from "lucide-react";
+import { supabase } from "../../lib/supabaseClient";
+import { useCampusStore } from "../../store/useCampusStore";
 import BottomNav from "../../components/BottomNav";
 
 type FoodItem = {
-  id: string | number;
+  id: string;
   name: string;
   description: string;
   price: string | number;
   image: string;
   contact: string;
-  createdAt?: string;
+  created_at: string;
+  campus_id: string;
+  user_id: string;
 };
 
-const mockFoods: FoodItem[] = [
-  { id: 1, name: "Ugali & Sukuma Wiki", description: "Delicious traditional meal", price: "KSh 150", image: "🍲", contact: "0712345678" },
-  { id: 2, name: "Samosas (5pc)", description: "Crispy golden samosas", price: "KSh 100", image: "🥟", contact: "0712345679" },
-  { id: 3, name: "Chapati & Beans", description: "Hot, fresh chapati with beans", price: "KSh 120", image: "🥔", contact: "0712345680" },
-];
-
 const FoodFeed = () => {
-  const [foods, setFoods] = useState<FoodItem[]>(mockFoods);
-  const [loading, setLoading] = useState(false);
+  const [foods, setFoods] = useState<FoodItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const campus = useCampusStore((s) => s.campus);
 
   const fetchFoods = async () => {
-    // TEMP: Using mock data for testing
-    setFoods(mockFoods);
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!campus?.id) {
+        setError("Please select a campus first");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("food")
+        .select("*")
+        .eq("campus_id", campus.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (fetchError) throw fetchError;
+
+      setFoods(data || []);
+    } catch (err) {
+      console.error("Error fetching food items:", err);
+      setError("Failed to load food listings");
+      setFoods([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    // DISABLED: fetchFoods();
-  }, []);
+    fetchFoods();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('food_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'food',
+        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+      }, (payload: any) => {
+        console.log('Food realtime update:', payload);
+        fetchFoods();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [campus?.id]);
 
   const filteredFoods = useMemo(() => {
     if (!searchQuery.trim()) return foods;
@@ -124,18 +166,11 @@ const FoodFeed = () => {
             <h2 className="text-3xl font-bold text-gray-800 mb-4">
               {searchQuery ? "No food found" : "No food posted yet"}
             </h2>
-            <p className="text-gray-600 text-lg max-w-md mx-auto mb-10">
+            <p className="text-gray-600 text-lg max-w-md mx-auto">
               {searchQuery
                 ? "Try searching for something else"
-                : "Be the first to share your delicious menu!"}
+                : "Check back later for delicious food deals!"}
             </p>
-            <a
-              href="/food/post"
-              className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition"
-            >
-              <Utensils className="w-6 h-6" />
-              Post Your Food
-            </a>
           </motion.div>
         )}
 

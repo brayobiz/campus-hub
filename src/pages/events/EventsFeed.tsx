@@ -1,24 +1,32 @@
 // src/pages/events/EventsFeed.tsx
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Calendar, MapPin, AlertCircle, RefreshCw, Plus } from "lucide-react";
+import { Search, Calendar, MapPin, AlertCircle, RefreshCw, Wifi, Zap } from "lucide-react";
+import { supabase } from "../../lib/supabaseClient";
+import { useCampusStore } from "../../store/useCampusStore";
 import BottomNav from "../../components/BottomNav";
 
 type Event = {
-  id: string | number;
+  id: string;
   title: string;
   description: string;
-  date: string; // ISO or "2025-12-25"
+  date: string; // ISO string
   location: string;
   banner?: string;
+  created_at: string;
+  campus_id: string;
+  user_id: string;
 };
 
 const EventsFeed = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ hasError: boolean; message: string; type: 'network' | 'database' | 'campus' | 'unknown' } | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 2;
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"All" | "Today" | "This Week" | "This Month">("All");
+  const campus = useCampusStore((s) => s.campus);
 
   // Native date helpers (no deps)
   const isToday = (d: string) => new Date(d).toDateString() === new Date().toDateString();
@@ -51,21 +59,81 @@ const EventsFeed = () => {
     };
   };
 
-  // Mock events for testing
-  const mockEvents: Event[] = [
-    { id: 1, title: "End of Semester Bash", description: "Celebrate with us", date: "2025-12-20", location: "Kileleshwa" },
-    { id: 2, title: "Tech Meetup", description: "Learn new skills", date: "2025-12-15", location: "Campus Hall" },
-    { id: 3, title: "Sports Day", description: "Join the competition", date: "2025-12-10", location: "Sports Ground" },
-  ];
-
   const fetchEvents = async () => {
-    // TEMP: Using mock data for testing
-    setEvents(mockEvents);
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!campus?.id) {
+        setError({ hasError: true, message: "Please select your campus to see events", type: 'campus' });
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("events")
+        .select("*")
+        .eq("campus_id", campus.id)
+        .order("date", { ascending: true })
+        .limit(50);
+
+      if (fetchError) throw fetchError;
+
+      setEvents(data || []);
+      setRetryCount(0); // Reset retry count on success
+    } catch (err: any) {
+      console.error("Error fetching events:", err);
+
+      // Determine error type and user-friendly message
+      let errorType: 'network' | 'database' | 'campus' | 'unknown' = 'unknown';
+      let errorMessage = "Unable to load events. Please try again.";
+
+      if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+        errorType = 'network';
+        errorMessage = "Connection lost. Check your internet and try again.";
+      } else if (err.message?.includes('permission') || err.message?.includes('auth')) {
+        errorType = 'database';
+        errorMessage = "Unable to access campus events. Please refresh the page.";
+      } else if (err.message?.includes('timeout')) {
+        errorType = 'network';
+        errorMessage = "Request timed out. Please try again.";
+      }
+
+      setError({ hasError: true, message: errorMessage, type: errorType });
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    if (retryCount < MAX_RETRIES) {
+      setRetryCount(prev => prev + 1);
+      fetchEvents();
+    }
   };
 
   useEffect(() => {
     fetchEvents();
-  }, []);
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('events_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'events',
+        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+      }, (payload: any) => {
+        console.log('Events realtime update:', payload);
+        fetchEvents();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [campus?.id]);
 
   // Smart filtering with useMemo for performance
   const filteredEvents = useMemo(() => {
@@ -104,12 +172,6 @@ const EventsFeed = () => {
             >
               <RefreshCw className={`w-5 h-5 text-gray-600 ${loading ? "animate-spin" : ""}`} />
             </button>
-            <a
-              href="/events/post"
-              className="p-3 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition"
-            >
-              <Plus className="w-5 h-5" />
-            </a>
           </div>
         </div>
       </header>
@@ -157,21 +219,50 @@ const EventsFeed = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-5 py-10">
         {/* Error State */}
-        {error && (
+        {error?.hasError && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-20"
           >
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Something went wrong</h3>
-            <p className="text-gray-600 mb-6">{error}</p>
-            <button
-              onClick={fetchEvents}
-              className="px-8 py-3 bg-rose-500 text-white font-semibold rounded-xl hover:bg-rose-600 transition"
-            >
-              Try Again
-            </button>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-full mb-6">
+              {error.type === 'network' ? (
+                <Wifi className="w-8 h-8 text-red-500" />
+              ) : error.type === 'campus' ? (
+                <MapPin className="w-8 h-8 text-red-500" />
+              ) : (
+                <AlertCircle className="w-8 h-8 text-red-500" />
+              )}
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              {error.type === 'network' ? 'Connection Issue' :
+               error.type === 'campus' ? 'Campus Required' :
+               'Something went wrong'}
+            </h3>
+            <p className="text-gray-600 mb-6 max-w-sm mx-auto">{error.message}</p>
+            {error.type !== 'campus' && retryCount < MAX_RETRIES && (
+              <p className="text-xs text-gray-500 mb-4">
+                Attempt {retryCount + 1} of {MAX_RETRIES + 1}
+              </p>
+            )}
+            {error.type !== 'campus' ? (
+              <button
+                onClick={handleRetry}
+                disabled={loading || retryCount >= MAX_RETRIES}
+                className="inline-flex items-center gap-2 px-8 py-3 bg-rose-500 text-white font-semibold rounded-xl hover:bg-rose-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`text-sm ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Retrying...' : retryCount >= MAX_RETRIES ? 'Max Retries Reached' : 'Try Again'}
+              </button>
+            ) : (
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center gap-2 px-8 py-3 bg-rose-500 text-white font-semibold rounded-xl hover:bg-rose-600 transition"
+              >
+                <RefreshCw className="text-sm" />
+                Refresh Page
+              </button>
+            )}
           </motion.div>
         )}
 
@@ -211,18 +302,11 @@ const EventsFeed = () => {
             <h2 className="text-3xl font-bold text-gray-800 mt-10 mb-4">
               {searchQuery || activeFilter !== "All" ? "No events found" : "No events yet"}
             </h2>
-            <p className="text-gray-600 text-lg max-w-md mx-auto mb-10">
+            <p className="text-gray-600 text-lg max-w-md mx-auto">
               {searchQuery || activeFilter !== "All"
                 ? "Try adjusting your search or filters"
-                : "Be the first to create an amazing event!"}
+                : "Check back later for upcoming events!"}
             </p>
-            <a
-              href="/events/post"
-              className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-rose-500 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition"
-            >
-              <Plus className="w-6 h-6" />
-              Create First Event
-            </a>
           </motion.div>
         )}
 

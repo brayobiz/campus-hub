@@ -13,11 +13,11 @@ interface ProfileData {
   year?: string;
   major?: string;
   campus_id?: string;
-  feed_scope?: "own_campus" | "all_campuses";
+  show_all_campuses?: boolean;
 }
 
 interface UserPreferences {
-  feed_scope: "own_campus" | "all_campuses";
+  show_all_campuses: boolean;
   notifications_enabled: boolean;
   profile_visibility: "private" | "public";
 }
@@ -50,7 +50,7 @@ const Profile = () => {
   const campus = useCampusStore((s) => s.campus);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences>({
-    feed_scope: "own_campus",
+    show_all_campuses: false,
     notifications_enabled: true,
     profile_visibility: "public",
   });
@@ -142,7 +142,7 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
             email: user.email || "",
             year: "",
             major: "",
-            feed_scope: "own_campus",
+            show_all_campuses: false,
           };
           setProfileData(newProfile);
           setRetryCount(0);
@@ -158,7 +158,7 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
           major: data.major || "",
         });
         setPreferences({
-          feed_scope: data.feed_scope || "own_campus",
+          show_all_campuses: data.show_all_campuses || false,
           notifications_enabled: true,
           profile_visibility: "public",
         });
@@ -272,13 +272,13 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     try {
       // Optimistic update
       setProfileData((prev) =>
-        prev ? { ...prev, feed_scope: preferences.feed_scope } : null
+        prev ? { ...prev, show_all_campuses: preferences.show_all_campuses } : null
       );
 
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
-          feed_scope: preferences.feed_scope,
+          show_all_campuses: preferences.show_all_campuses,
         })
         .eq("id", user.id);
 
@@ -497,7 +497,7 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
               <SettingRow
                 icon="🌍"
                 label="Feed Scope"
-                value={preferences.feed_scope === "own_campus" ? "Your campus only" : "All campuses"}
+                value={preferences.show_all_campuses ? "All campuses" : "Your campus only"}
                 onTap={() => setOpenModal("preferences")}
               />
               <SettingRow
@@ -836,10 +836,10 @@ const PreferencesModal = ({
                   <button
                     disabled={saving}
               onClick={() =>
-                setPreferences({ ...preferences, feed_scope: "own_campus" })
+                setPreferences({ ...preferences, show_all_campuses: false })
               }
               className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                preferences.feed_scope === "own_campus"
+                !preferences.show_all_campuses
                   ? "border-orange-500 bg-orange-50"
                   : "border-gray-200 bg-white hover:border-orange-300"
               }`}
@@ -847,12 +847,12 @@ const PreferencesModal = ({
               <div className="flex items-center gap-3">
                 <div
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    preferences.feed_scope === "own_campus"
+                    !preferences.show_all_campuses
                       ? "border-orange-500 bg-orange-500"
                       : "border-gray-300"
                   }`}
                 >
-                  {preferences.feed_scope === "own_campus" && (
+                  {!preferences.show_all_campuses && (
                     <div className="w-2 h-2 bg-white rounded-full" />
                   )}
                 </div>
@@ -869,10 +869,10 @@ const PreferencesModal = ({
                   <button
                     disabled={saving}
               onClick={() =>
-                setPreferences({ ...preferences, feed_scope: "all_campuses" })
+                setPreferences({ ...preferences, show_all_campuses: true })
               }
               className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                preferences.feed_scope === "all_campuses"
+                preferences.show_all_campuses
                   ? "border-orange-500 bg-orange-50"
                   : "border-gray-200 bg-white hover:border-orange-300"
               }`}
@@ -880,12 +880,12 @@ const PreferencesModal = ({
               <div className="flex items-center gap-3">
                 <div
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    preferences.feed_scope === "all_campuses"
+                    preferences.show_all_campuses
                       ? "border-orange-500 bg-orange-500"
                       : "border-gray-300"
                   }`}
                 >
-                  {preferences.feed_scope === "all_campuses" && (
+                  {preferences.show_all_campuses && (
                     <div className="w-2 h-2 bg-white rounded-full" />
                   )}
                 </div>
