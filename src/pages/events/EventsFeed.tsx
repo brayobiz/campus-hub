@@ -14,7 +14,7 @@ type Event = {
   location: string;
   banner?: string;
   created_at: string;
-  campus_id: string;
+  campus_id: number;
   user_id: string;
 };
 
@@ -73,7 +73,7 @@ const EventsFeed = () => {
       const { data, error: fetchError } = await supabase
         .from("events")
         .select("*")
-        .eq("campus_id", campus.id)
+        .eq("campus_id", parseInt(campus.id))
         .order("date", { ascending: true })
         .limit(50);
 

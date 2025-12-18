@@ -14,7 +14,7 @@ type FoodItem = {
   image: string;
   contact: string;
   created_at: string;
-  campus_id: string;
+  campus_id: number;
   user_id: string;
 };
 
@@ -39,7 +39,7 @@ const FoodFeed = () => {
       const { data, error: fetchError } = await supabase
         .from("food")
         .select("*")
-        .eq("campus_id", campus.id)
+        .eq("campus_id", parseInt(campus.id))
         .order("created_at", { ascending: false })
         .limit(50);
 

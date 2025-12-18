@@ -96,7 +96,7 @@ const PostMarketplace = () => {
         category,
         contact,
         images: images.length > 0 ? images : null,
-        campus_id: campus.id,
+        campus_id: parseInt(campus.id),
         user_id: user.id,
       }]);
 

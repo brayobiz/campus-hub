@@ -57,7 +57,7 @@ const PostEvent = () => {
         date,
         location,
         banner: bannerUrl,
-        campus_id: campus.id,
+        campus_id: parseInt(campus.id),
         user_id: user.id,
       }]);
 

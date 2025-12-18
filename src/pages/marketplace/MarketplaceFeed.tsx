@@ -14,7 +14,7 @@ type MarketplacePost = {
   price?: number;
   contact?: string;
   created_at: string;
-  campus_id: string;
+  campus_id: number;
   user_id: string;
 };
 
@@ -37,7 +37,7 @@ const MarketplaceFeed = () => {
         event: '*',
         schema: 'public',
         table: 'marketplace',
-        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+        filter: campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
       }, (payload: any) => {
         console.log('Marketplace realtime update:', payload);
         fetchMarketplacePosts();
@@ -63,7 +63,7 @@ const MarketplaceFeed = () => {
       const { data, error: fetchError } = await supabase
         .from("marketplace")
         .select("*")
-        .eq("campus_id", campus.id)
+        .eq("campus_id", parseInt(campus.id))
         .order("created_at", { ascending: false })
         .limit(50);
 

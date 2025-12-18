@@ -157,7 +157,7 @@ const PostNote = () => {
               file: publicUrl,
               filename: file.name,
               description,
-              campus_id: campus.id,
+              campus_id: parseInt(campus.id),
               user_id: user.id,
             }]);
 

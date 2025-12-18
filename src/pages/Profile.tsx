@@ -12,7 +12,7 @@ interface ProfileData {
   email: string;
   year?: string;
   major?: string;
-  campus_id?: string;
+  campus_id?: number;
   show_all_campuses?: boolean;
 }
 

@@ -13,7 +13,7 @@ type Confession = {
   likes_count: number;
   comments_count: number;
   created_at: string;
-  campus_id: string;
+  campus_id: number;
   user_id: string;
 };
 
@@ -58,7 +58,7 @@ const ConfessionsFeed = () => {
         event: '*',
         schema: 'public',
         table: 'confessions',
-        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+        filter: campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
       }, (payload: any) => {
         console.log('Confessions realtime update:', payload);
         fetchConfessions(); // Refetch on any change
@@ -85,7 +85,7 @@ const ConfessionsFeed = () => {
       const { data, error: fetchError } = await supabase
         .from("confessions")
         .select("*")
-        .eq("campus_id", campus.id)
+        .eq("campus_id", parseInt(campus.id))
         .order("created_at", { ascending: false })
         .limit(50);
 

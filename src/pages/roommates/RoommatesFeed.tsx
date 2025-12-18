@@ -16,7 +16,7 @@ type RoommatePost = {
   budget?: number;
   contact?: string;
   created_at: string;
-  campus_id: string;
+  campus_id: number;
   user_id: string;
 };
 
@@ -37,7 +37,7 @@ const RoommatesFeed = () => {
         event: '*',
         schema: 'public',
         table: 'roommates',
-        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+        filter: campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
       }, (payload: any) => {
         console.log('Roommates realtime update:', payload);
         fetchRoommatePosts();
@@ -63,7 +63,7 @@ const RoommatesFeed = () => {
       const { data, error: fetchError } = await supabase
         .from("roommates")
         .select("*")
-        .eq("campus_id", campus.id)
+        .eq("campus_id", parseInt(campus.id))
         .order("created_at", { ascending: false })
         .limit(50);
 

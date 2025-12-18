@@ -57,8 +57,10 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
         }
       }
 
-      const res = await fetch(submitUrl, { method: "POST", body: payload });
-      if (!res.ok) throw new Error("Failed to submit");
+      if (submitUrl) {
+        const res = await fetch(submitUrl, { method: "POST", body: payload });
+        if (!res.ok) throw new Error("Failed to submit");
+      }
 
       if (onSuccess) onSuccess();
 

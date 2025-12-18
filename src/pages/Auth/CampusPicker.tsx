@@ -83,6 +83,11 @@ const CampusPicker = () => {
         .single();
 
       if (!error && profile?.campus_id) {
+        // Find the campus and set it in store
+        const userCampus = campuses.find(c => c.id === profile.campus_id.toString());
+        if (userCampus) {
+          setCampusStore(userCampus);
+        }
         // Add delay to ensure store hydrates before navigation
         await new Promise((resolve) => setTimeout(resolve, 50));
         navigate("/home");
@@ -93,8 +98,11 @@ const CampusPicker = () => {
   };
 
   useEffect(() => {
-    fetchCampuses();
-    checkUserCampus();
+    const init = async () => {
+      await fetchCampuses();
+      checkUserCampus();
+    };
+    init();
   }, []);
 
   // Search filter

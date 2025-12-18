@@ -60,7 +60,7 @@ const PostFood = () => {
         price,
         image: imageUrl || "🍲", // Default emoji if no image
         contact,
-        campus_id: campus.id,
+        campus_id: parseInt(campus.id),
         user_id: user.id,
       }]);
 

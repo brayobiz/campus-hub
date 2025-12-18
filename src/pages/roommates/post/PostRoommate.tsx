@@ -58,12 +58,12 @@ const PostRoommate = () => {
       .from("roommates")
       .insert([{
         title,
-        roomType,
-        budget,
+        room_type: roomType,
+        budget: budget ? parseFloat(budgetStr.replace(/[^\d.]/g, "")) : null,
         contact,
         description,
         image: imageUrl,
-        campus_id: campus.id,
+        campus_id: parseInt(campus.id),
         user_id: user.id,
       }]);
 
