@@ -1,9 +1,10 @@
 // src/pages/events/EventsFeed.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Search, Calendar, MapPin, AlertCircle, RefreshCw, Wifi, Zap } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useCampusStore } from "../../store/useCampusStore";
+import { useUserStore } from "../../store/useUserStore";
 import BottomNav from "../../components/BottomNav";
 
 type Event = {
@@ -27,6 +28,7 @@ const EventsFeed = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"All" | "Today" | "This Week" | "This Month">("All");
   const campus = useCampusStore((s) => s.campus);
+  const user = useUserStore((s) => s.user);
 
   // Native date helpers (no deps)
   const isToday = (d: string) => new Date(d).toDateString() === new Date().toDateString();
@@ -59,23 +61,37 @@ const EventsFeed = () => {
     };
   };
 
-  const fetchEvents = async () => {
+
+
+  const handleRetry = () => {
+    if (retryCount < MAX_RETRIES) {
+      setRetryCount(prev => prev + 1);
+      fetchEvents();
+    }
+  };
+
+  const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!campus?.id) {
+      if (!user?.show_all_campuses && !campus?.id) {
         setError({ hasError: true, message: "Please select your campus to see events", type: 'campus' });
         setLoading(false);
         return;
       }
 
-      const { data, error: fetchError } = await supabase
+      let query: any = supabase
         .from("events")
         .select("*")
-        .eq("campus_id", parseInt(campus.id))
         .order("date", { ascending: true })
         .limit(50);
+
+      if (!user?.show_all_campuses && campus?.id) {
+        query = query.eq("campus_id", parseInt(campus.id));
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
@@ -104,14 +120,7 @@ const EventsFeed = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRetry = () => {
-    if (retryCount < MAX_RETRIES) {
-      setRetryCount(prev => prev + 1);
-      fetchEvents();
-    }
-  };
+  }, [campus?.id, user?.show_all_campuses]);
 
   useEffect(() => {
     fetchEvents();
@@ -123,7 +132,7 @@ const EventsFeed = () => {
         event: '*',
         schema: 'public',
         table: 'events',
-        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+        filter: !user?.show_all_campuses && campus?.id ? `campus_id=eq.${campus.id}` : undefined,
       }, (payload: any) => {
         console.log('Events realtime update:', payload);
         fetchEvents();
@@ -133,7 +142,7 @@ const EventsFeed = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [campus?.id]);
+  }, [fetchEvents]);
 
   // Smart filtering with useMemo for performance
   const filteredEvents = useMemo(() => {

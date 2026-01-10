@@ -80,7 +80,7 @@ export const signupWithBypass = async (
     }
 
     return { success: true, userId: data.user.id };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Signup error:", err);
     throw err;
   }
@@ -121,7 +121,7 @@ export const createUserProfile = async (
     }
 
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Profile creation error:", err);
     throw err;
   }
@@ -141,7 +141,7 @@ export const getUserProfile = async (userId: string) => {
     if (error) throw error;
 
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error fetching profile:", err);
     return null;
   }
@@ -162,7 +162,7 @@ export const updateUserCampus = async (userId: string, campusId: string) => {
     if (error) throw error;
 
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error updating campus:", err);
     throw err;
   }
@@ -176,7 +176,7 @@ export const logoutUser = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     return true;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Logout error:", err);
     return false;
   }

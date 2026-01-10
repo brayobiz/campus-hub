@@ -8,6 +8,8 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist']),
   {
+    // Ignore large third-party directories to prevent spurious warnings
+    ignores: ['**/.yarn/**', '**/node_modules/**', 'public/**', 'supabase/migrations/**', '.git/**'],
     files: ['**/*.{ts,tsx}'],
     extends: [
       js.configs.recommended,

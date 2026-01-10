@@ -8,7 +8,8 @@ export interface UserProfile {
   verified?: boolean;
   campus_id?: string | null;
   avatar_url?: string | null;
-}
+  show_all_campuses?: boolean;
+} 
 
 type UserState = {
   user: UserProfile | null;

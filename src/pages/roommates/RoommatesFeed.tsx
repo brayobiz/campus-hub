@@ -1,9 +1,10 @@
 // src/pages/roommates/RoommatesFeed.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Search, MapPin, Users, Phone, MessageCircle, RefreshCw } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useCampusStore } from "../../store/useCampusStore";
+import { useUserStore } from "../../store/useUserStore";
 import BottomNav from "../../components/BottomNav";
 
 type RoommatePost = {
@@ -26,46 +27,30 @@ const RoommatesFeed = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const campus = useCampusStore((s) => s.campus);
+  const user = useUserStore((s) => s.user);
 
-  useEffect(() => {
-    fetchRoommatePosts();
-
-    // Set up realtime subscription
-    const channel = supabase
-      .channel('roommates_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'roommates',
-        filter: campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
-      }, (payload: any) => {
-        console.log('Roommates realtime update:', payload);
-        fetchRoommatePosts();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [campus?.id]);
-
-  const fetchRoommatePosts = async () => {
+  const fetchRoommatePosts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!campus?.id) {
+      if (!user?.show_all_campuses && !campus?.id) {
         setError("Please select a campus first");
         setLoading(false);
         return;
       }
 
-      const { data, error: fetchError } = await supabase
+      let query: any = supabase
         .from("roommates")
         .select("*")
-        .eq("campus_id", parseInt(campus.id))
         .order("created_at", { ascending: false })
         .limit(50);
+
+      if (!user?.show_all_campuses && campus?.id) {
+        query = query.eq("campus_id", parseInt(campus.id));
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
@@ -77,7 +62,31 @@ const RoommatesFeed = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [campus?.id, user?.show_all_campuses]);
+
+  useEffect(() => {
+    fetchRoommatePosts();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('roommates_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'roommates',
+        filter: !user?.show_all_campuses && campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
+      }, (payload: any) => {
+        console.log('Roommates realtime update:', payload);
+        fetchRoommatePosts();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchRoommatePosts]);
+
+
 
   // Unified search across name, campus, roomType, description
   const filteredPosts = useMemo(() => {

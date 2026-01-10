@@ -1,5 +1,5 @@
 // src/pages/confessions/ConfessionsFeed.tsx - Production Ready
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import BottomNav from "../../components/BottomNav";
 import { FaHeart, FaComment, FaSpinner, FaExclamationCircle } from "react-icons/fa";
@@ -48,98 +48,47 @@ const ConfessionsFeed = () => {
   const [commentsData, setCommentsData] = useState<{ [key: string]: Comment[] }>({});
   const [openReplies, setOpenReplies] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetchConfessions();
-
-    // Set up realtime subscription for confessions
-    const channel = supabase
-      .channel('confessions_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'confessions',
-        filter: campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
-      }, (payload: any) => {
-        console.log('Confessions realtime update:', payload);
-        // Re-fetch the list to ensure counts and ordering are fresh
-        fetchConfessions();
-      })
-      .subscribe();
-
-    // Also listen for direct confession_likes changes to update counts more responsively
-    const likesChannel = supabase
-      .channel('confession_likes_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'confession_likes',
-      }, (payload: any) => {
-        // Normalize the payload record
-        const rec = payload.new || payload.old || payload.record || payload;
-        const ev = (payload.eventType || payload.event || '').toUpperCase();
-
-        if (!rec || !rec.confession_id) return;
-
-        if (ev === 'INSERT') {
-          setConfessions((prev) =>
-            prev.map((c) => (c.id === rec.confession_id ? { ...c, likes_count: c.likes_count + 1 } : c))
-          );
-          if (rec.user_id && user?.id && rec.user_id === user.id) {
-            setLikedIds((prev) => (prev.includes(rec.confession_id) ? prev : [...prev, rec.confession_id]));
-          }
-        } else if (ev === 'DELETE') {
-          setConfessions((prev) =>
-            prev.map((c) => (c.id === rec.confession_id ? { ...c, likes_count: Math.max(0, c.likes_count - 1) } : c))
-          );
-          if (rec.user_id && user?.id && rec.user_id === user.id) {
-            setLikedIds((prev) => prev.filter((id) => id !== rec.confession_id));
-          }
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(likesChannel);
-    };
-  }, [campus?.id]);
-
-  const fetchConfessions = async () => {
+  const fetchConfessions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!campus?.id) {
+      if (!user?.show_all_campuses && !campus?.id) {
         setError("Please select a campus first");
         setLoading(false);
         return;
       }
 
-      // Fetch confessions from Supabase
-      const { data, error: fetchError } = await supabase
+      // Build query depending on preference
+      let query = supabase
         .from("confessions")
         .select("*")
-        .eq("campus_id", parseInt(campus.id))
         .order("created_at", { ascending: false })
         .limit(50);
 
+      if (!user?.show_all_campuses && campus?.id) {
+        query = query.eq("campus_id", parseInt(campus.id));
+      }
+
+      const { data, error: fetchError } = await query;
       if (fetchError) throw fetchError;
 
-      const fetched = data || [];
-      setConfessions(fetched);
+      const fetched = (data || []) as Record<string, unknown>[];
+      setConfessions((fetched as unknown as Confession[]) || []);
 
       // Also fetch which of these confessions the current user has liked
       if (user?.id && fetched.length > 0) {
         try {
+          const ids = fetched.map((f) => String((f as { id?: string }).id));
           const { data: likedData, error: likedErr } = await supabase
             .from("confession_likes")
             .select("confession_id")
             .eq("user_id", user.id)
-            .in("confession_id", fetched.map((f: any) => f.id));
+            .in("confession_id", ids);
 
           if (likedErr) throw likedErr;
 
-          setLikedIds((likedData || []).map((l: any) => l.confession_id));
+          setLikedIds((likedData || []).map((l: Record<string, unknown>) => String(l.confession_id)));
         } catch (e) {
           console.error("Error fetching liked ids:", e);
           // Do not block confessions rendering on this
@@ -155,7 +104,69 @@ const ConfessionsFeed = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [campus?.id, user?.show_all_campuses, user?.id]);
+
+  useEffect(() => {
+    fetchConfessions();
+
+    // Set up realtime subscription for confessions
+    const channel = supabase
+      .channel('confessions_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'confessions',
+        filter: !user?.show_all_campuses && campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
+      }, (payload: unknown) => {
+        console.log('Confessions realtime update:', payload);
+        // Re-fetch the list to ensure counts and ordering are fresh
+        fetchConfessions();
+      })
+      .subscribe();
+
+    // Also listen for direct confession_likes changes to update counts more responsively
+    const likesChannel = supabase
+      .channel('confession_likes_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'confession_likes',
+      }, (payload: unknown) => {
+        // Normalize the payload record
+        const p = payload as Record<string, unknown>;
+        const rec = (p.new as Record<string, unknown>) || (p.old as Record<string, unknown>) || (p.record as Record<string, unknown>) || p;
+        const ev = String((p.eventType as string) || (p.event as string) || '').toUpperCase();
+
+        const confessionId = rec ? String(rec.confession_id) : undefined;
+        const userId = rec ? String(rec.user_id) : undefined;
+
+        if (!rec || !confessionId) return;
+
+        if (ev === 'INSERT') {
+          setConfessions((prev) =>
+            prev.map((c) => (c.id === confessionId ? { ...c, likes_count: c.likes_count + 1 } : c))
+          );
+          if (userId && user?.id && userId === user.id) {
+            setLikedIds((prev) => (prev.includes(confessionId) ? prev : [...prev, confessionId]));
+          }
+        } else if (ev === 'DELETE') {
+          setConfessions((prev) =>
+            prev.map((c) => (c.id === confessionId ? { ...c, likes_count: Math.max(0, c.likes_count - 1) } : c))
+          );
+          if (userId && user?.id && userId === user.id) {
+            setLikedIds((prev) => prev.filter((id) => id !== confessionId));
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(likesChannel);
+    };
+  }, [fetchConfessions]);
+
+
 
   const handleLike = async (confessionId: string) => {
     if (likedIds.includes(confessionId)) return;

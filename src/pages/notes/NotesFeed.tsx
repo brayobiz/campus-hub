@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Search, FileText, Download, MessageCircle, RefreshCw, BookOpen, FileDown } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useCampusStore } from "../../store/useCampusStore";
+import { useUserStore } from "../../store/useUserStore";
 import BottomNav from "../../components/BottomNav";
 
 type Note = {
@@ -26,24 +27,30 @@ const NotesFeed = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const campus = useCampusStore((s) => s.campus);
+  const user = useUserStore((s) => s.user);
 
   const fetchNotes = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!campus?.id) {
+      if (!user?.show_all_campuses && !campus?.id) {
         setError("Please select a campus first");
         setLoading(false);
         return;
       }
 
-      const { data, error: fetchError } = await supabase
+      let query: any = supabase
         .from("notes")
         .select("*")
-        .eq("campus_id", parseInt(campus.id))
         .order("created_at", { ascending: false })
         .limit(50);
+
+      if (!user?.show_all_campuses && campus?.id) {
+        query = query.eq("campus_id", parseInt(campus.id));
+      }
+
+      const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
@@ -67,7 +74,7 @@ const NotesFeed = () => {
         event: '*',
         schema: 'public',
         table: 'notes',
-        filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+        filter: !user?.show_all_campuses && campus?.id ? `campus_id=eq.${campus.id}` : undefined,
       }, (payload: any) => {
         console.log('Notes realtime update:', payload);
         fetchNotes();
@@ -77,7 +84,7 @@ const NotesFeed = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [campus?.id]);
+  }, [campus?.id, user?.show_all_campuses]);
 
   const filteredNotes = useMemo(() => {
     if (!searchQuery.trim()) return notes;

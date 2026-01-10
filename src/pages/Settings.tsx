@@ -132,6 +132,8 @@ const Settings = () => {
       if (error) throw error;
 
       setShowAllCampuses(newValue);
+      // Sync to global user store so other pages update immediately
+      useUserStore.getState().updateUser({ show_all_campuses: newValue });
     } catch (e: any) {
       alert("Failed to update preference: " + (e?.message || "Unknown error"));
     } finally {

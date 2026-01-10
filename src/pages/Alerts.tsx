@@ -1,7 +1,7 @@
 // src/pages/Alerts.tsx — SENIOR DESIGNER EDITION (2025)
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { FaBell, FaHeart, FaComment, FaShoppingBag, FaCalendarAlt, FaUserPlus, FaStar, FaExclamationCircle, FaSync, FaWifi } from "react-icons/fa";
+import { FaBell, FaHeart, FaComment, FaCalendarAlt, FaUserPlus, FaStar, FaExclamationCircle, FaSync, FaWifi } from "react-icons/fa";
 import BottomNav from "../components/BottomNav";
 import { supabase } from "../lib/supabaseClient";
 import { useUserStore } from "../store/useUserStore";
@@ -27,29 +27,20 @@ const Alerts = () => {
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 2;
 
-  useEffect(() => {
-    fetchAlerts();
+  type NotificationRow = {
+    id: string;
+    type?: string;
+    title?: string;
+    message?: string;
+    created_at?: string;
+    read?: boolean;
+    user_id?: string;
+    related_post_id?: string;
+    related_user_id?: string;
+    action_url?: string;
+  };
 
-    // Set up realtime subscription for alerts
-    const channel = supabase
-      .channel('alerts_changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: user?.id ? `user_id=eq.${user.id}` : undefined,
-      }, (payload: any) => {
-        console.log('Alerts realtime update:', payload);
-        fetchAlerts(); // Refetch on any change
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
-
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     if (!user?.id) {
       setLoading(false);
       return;
@@ -68,34 +59,36 @@ const Alerts = () => {
 
       if (fetchError) throw fetchError;
 
-      const formattedAlerts: Alert[] = (data || []).map((n: any) => ({
+      const formattedAlerts: Alert[] = (data || []).map((n: NotificationRow) => ({
         id: n.id,
-        type: n.type || "system",
+        type: (n.type as Alert['type']) || "system",
         title: n.title || "Alert",
         message: n.message || "",
-        timestamp: n.created_at,
+        timestamp: n.created_at || "",
         read: n.read || false,
-        userId: n.user_id,
+        userId: n.user_id || "",
         relatedPostId: n.related_post_id,
         relatedUserId: n.related_user_id,
         actionUrl: n.action_url,
       }));
 
       setAlerts(formattedAlerts);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching alerts:", err);
+
+      const emsg = (err as { message?: string })?.message ?? String(err ?? "");
 
       // Determine error type and user-friendly message
       let errorType: 'network' | 'database' | 'unknown' = 'unknown';
       let errorMessage = "Unable to load alerts. Please try again.";
 
-      if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+      if (emsg.includes('Failed to fetch') || emsg.includes('NetworkError')) {
         errorType = 'network';
         errorMessage = "Connection lost. Check your internet and try again.";
-      } else if (err.message?.includes('permission') || err.message?.includes('auth')) {
+      } else if (emsg.includes('permission') || emsg.includes('auth')) {
         errorType = 'database';
         errorMessage = "Unable to access your alerts. Please refresh the page.";
-      } else if (err.message?.includes('timeout')) {
+      } else if (emsg.includes('timeout')) {
         errorType = 'network';
         errorMessage = "Request timed out. Please try again.";
       }
@@ -105,7 +98,31 @@ const Alerts = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchAlerts();
+
+    // Set up realtime subscription for alerts
+    const channel = supabase
+      .channel('alerts_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+      }, (payload: unknown) => {
+        console.log('Alerts realtime update:', payload);
+        fetchAlerts(); // Refetch on any change
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, fetchAlerts]);
+
+
 
   const handleRetry = () => {
     if (retryCount < MAX_RETRIES) {

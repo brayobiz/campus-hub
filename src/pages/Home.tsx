@@ -1,11 +1,12 @@
 // src/pages/Home.tsx — 2025 Modern Design
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
 import useModalStore from "../store/useModalStore";
-import { FaSearch, FaStar, FaMapMarkerAlt } from "react-icons/fa";
+import { FaSearch, FaMapMarkerAlt } from "react-icons/fa";
 import featureFeed from "../data/featureFeed";
+import type { Feature } from "../data/featureFeed";
 import { useCampusStore } from "../store/useCampusStore";
 import { useUserStore } from "../store/useUserStore";
 
@@ -14,9 +15,8 @@ import { useUserStore } from "../store/useUserStore";
 const Home = () => {
   const campus = useCampusStore((s) => s.campus);
   const user = useUserStore((s) => s.user);
-  const modalOpen = useModalStore((s: any) => s.postOpen);
-  const openPostModal = useModalStore((s: any) => s.openPost);
-  const closePostModal = useModalStore((s: any) => s.closePost);
+  const openPostModal = useModalStore((s) => s.openPost);
+  const closePostModal = useModalStore((s) => s.closePost);
   const navigate = useNavigate();
 
   const getGreeting = () => {
@@ -116,7 +116,7 @@ const Home = () => {
         </div>
         
         <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featureFeed.map((f: any, i: number) => (
+          {featureFeed.map((f: Feature, i: number) => (
             <motion.button
               key={i}
               layoutId={f.title}

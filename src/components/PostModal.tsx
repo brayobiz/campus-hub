@@ -1,12 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import useModalStore from "../store/useModalStore";
+import type { Feature } from "../data/featureFeed";
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import featureFeed from "../data/featureFeed";
 
 const PostModal = () => {
-  const open = useModalStore((s: any) => s.postOpen);
-  const close = useModalStore((s: any) => s.closePost);
+  const open = useModalStore((s) => s.postOpen);
+  const close = useModalStore((s) => s.closePost);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
   // Accessibility: focus trap and Escape to close
@@ -66,7 +67,7 @@ const PostModal = () => {
             <p className="text-gray-600 mb-6 sm:mb-8 text-sm sm:text-base">Share with your campus community</p>
 
             <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
-              {featureFeed.map((f: any, i: number) => (
+              {featureFeed.map((f: Feature, i: number) => (
                 <motion.button
                   key={i}
                   whileHover={{ scale: 1.05, y: -4 }}

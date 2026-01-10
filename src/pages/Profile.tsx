@@ -111,9 +111,7 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     return true;
   };
 
-  useEffect(() => {
-    loadProfileData();
-  }, [user?.id]);
+
 
   const loadProfileData = useCallback(async (isRetry = false) => {
     try {
@@ -162,6 +160,8 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
           notifications_enabled: true,
           profile_visibility: "public",
         });
+        // Sync preference to global user store so feeds can respect it
+        useUserStore.getState().updateUser({ show_all_campuses: data.show_all_campuses || false });
         setRetryCount(0);
       }
     } catch (err) {
@@ -189,6 +189,10 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
       setLoading(false);
     }
   }, [user?.id, retryCount]);
+
+  useEffect(() => {
+    loadProfileData();
+  }, [user?.id, loadProfileData]);
 
   useEffect(() => {
     return () => {
@@ -296,6 +300,8 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
       }, 3000);
 
       console.log("Preferences saved successfully");
+      // Update global user store so feeds respond immediately
+      useUserStore.getState().updateUser({ show_all_campuses: preferences.show_all_campuses });
     } catch (err) {
       const errorMessage =
         err instanceof Error

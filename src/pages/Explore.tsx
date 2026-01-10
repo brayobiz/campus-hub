@@ -1,10 +1,11 @@
 // src/pages/Explore.tsx — 1 MONTH FREE EDITION (FINAL)
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaSearch, FaCrown, FaFire, FaShoppingBag, FaCalendarAlt, FaBookOpen, FaHome, FaStar, FaHeart, FaComment, FaUsers, FaUtensils, FaExclamationCircle, FaSync, FaWifi } from "react-icons/fa";
+import { FaSearch, FaCrown, FaFire, FaShoppingBag, FaCalendarAlt, FaBookOpen, FaStar, FaHeart, FaComment, FaUsers, FaUtensils, FaExclamationCircle, FaSync, FaWifi } from "react-icons/fa";
 import BottomNav from "../components/BottomNav";
 import { supabase } from "../lib/supabaseClient";
 import { useCampusStore } from "../store/useCampusStore";
+import { useUserStore } from "../store/useUserStore";
 
 type RecentPost = {
   id: string;
@@ -20,6 +21,7 @@ type RecentPost = {
 
 const Explore = () => {
   const campus = useCampusStore((s) => s.campus);
+  const user = useUserStore((s) => s.user);
   const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ hasError: boolean; message: string; type: 'network' | 'database' | 'unknown' } | null>(null);
@@ -39,7 +41,7 @@ const Explore = () => {
           event: '*',
           schema: 'public',
           table,
-          filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+          filter: !user?.show_all_campuses && campus?.id ? `campus_id=eq.${campus.id}` : undefined,
         }, () => {
           console.log(`Explore realtime update from ${table}`);
           fetchRecentPosts();
@@ -62,14 +64,25 @@ const Explore = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch recent posts from all tables
+      // Build queries and include campus filter only when not showing all campuses
+      const mpQ = supabase.from('marketplace').select('id, title, description, price, images, created_at').order('created_at', { ascending: false }).limit(3);
+      const evQ = supabase.from('events').select('id, title, description, banner, created_at').order('date', { ascending: true }).limit(3);
+      const rmQ = supabase.from('roommates').select('id, title, description, image, created_at').order('created_at', { ascending: false }).limit(3);
+      const fdQ = supabase.from('food').select('id, name, description, price, image, created_at').order('created_at', { ascending: false }).limit(3);
+      const ntQ = supabase.from('notes').select('id, title, description, file, created_at').order('created_at', { ascending: false }).limit(3);
+      const cfQ = supabase.from('confessions').select('id, content, likes_count, comments_count, created_at').order('created_at', { ascending: false }).limit(3);
+
+      if (!user?.show_all_campuses && campus?.id) {
+        mpQ.eq('campus_id', campus.id);
+        evQ.eq('campus_id', campus.id);
+        rmQ.eq('campus_id', campus.id);
+        fdQ.eq('campus_id', campus.id);
+        ntQ.eq('campus_id', campus.id);
+        cfQ.eq('campus_id', campus.id);
+      }
+
       const [marketplace, events, roommates, food, notes, confessions] = await Promise.all([
-        supabase.from('marketplace').select('id, title, description, price, images, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('events').select('id, title, description, banner, created_at').eq('campus_id', campus.id).order('date', { ascending: true }).limit(3),
-        supabase.from('roommates').select('id, title, description, image, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('food').select('id, name, description, price, image, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('notes').select('id, title, description, file, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('confessions').select('id, content, likes_count, comments_count, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
+        mpQ, evQ, rmQ, fdQ, ntQ, cfQ,
       ]);
 
       const allPosts: RecentPost[] = [

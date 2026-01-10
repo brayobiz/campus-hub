@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabaseClient";
 import { useUserStore } from "../../store/useUserStore";
 import { signupWithBypass, createUserProfile } from "../../lib/authUtils";
 import { FaEnvelope, FaLock, FaUser, FaEye, FaEyeSlash, FaArrowRight, FaChevronLeft, FaCheck, FaRocket } from "react-icons/fa";
@@ -79,8 +78,8 @@ const SignUp = () => {
       try {
         await createUserProfile(userId, email, fullname);
         console.log("✅ [SignUp] Profile created");
-      } catch (profileErr: any) {
-        console.error("❌ Profile creation error:", profileErr?.message);
+      } catch (profileErr: unknown) {
+        console.error("❌ Profile creation error:", profileErr);
         // Don't fail signup if profile creation fails
       }
 
@@ -92,10 +91,10 @@ const SignUp = () => {
       
       // Redirect to campus picker
       setTimeout(() => navigate("/auth/campuspicker"), 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("❌ [SignUp] Signup error:", err);
       setAuthLoading(false);
-      setError(err?.message || "An unexpected error occurred. Please try again.");
+      setError((err as { message?: string })?.message || "An unexpected error occurred. Please try again.");
     }
   };
 

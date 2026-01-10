@@ -19,7 +19,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, State> {
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     // Log to console (visible in Vite terminal and browser console)
     // Keep this minimal and synchronous to avoid further errors
-    // eslint-disable-next-line no-console
+     
     console.error("Unhandled render error:", error, info);
     this.setState({ error, info });
   }

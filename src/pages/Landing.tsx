@@ -5,7 +5,6 @@ import {
   MessageCircle, 
   ShoppingBag, 
   Calendar, 
-  Users, 
   Sparkles,
   ArrowRight,
   Check

@@ -1,0 +1,11 @@
+.yarn/
+.yarn/**
+node_modules/
+dist/
+build/
+public/
+supabase/migrations/
+.supabase/
+.env
+.vscode/
+.workspaces/

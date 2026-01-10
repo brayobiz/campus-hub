@@ -12,6 +12,8 @@ interface Field {
   render?: () => React.ReactNode;
 }
 
+type FormValue = string | File | File[] | undefined;
+
 interface PostFormProps {
   title: string;
   fields: Field[];
@@ -20,13 +22,13 @@ interface PostFormProps {
   onSuccess?: () => void;
 }
 
-const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostFormProps) => {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+const PostForm = ({ title, fields, onBeforeSubmit, onSuccess }: PostFormProps) => {
+  const [formData, setFormData] = useState<Record<string, FormValue>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleChange = (name: string, value: any) => {
+  const handleChange = (name: string, value: FormValue) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -41,12 +43,15 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
         const value = formData[field.name];
         if (field.type === "file" && value) {
           if (field.multiple && Array.isArray(value)) {
-            value.forEach((file: File) => payload.append(field.name, file));
+            (value as File[]).forEach((file) => payload.append(field.name, file));
+          } else if (value instanceof File) {
+            payload.append(field.name, value as Blob);
           } else {
-            payload.append(field.name, value);
+            // Unexpected shape; stringify as a fallback
+            payload.append(field.name, String(value));
           }
         } else {
-          payload.append(field.name, value || "");
+          payload.append(field.name, String(value ?? ""));
         }
       });
 
@@ -63,8 +68,8 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
       setSuccess("Submitted successfully!");
       setFormData({});
       setTimeout(() => setSuccess(null), 3000); // Auto-hide after 3 seconds
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -129,7 +134,7 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
                     <textarea
                       className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-orange-300 focus:border-orange-500 focus:outline-none bg-white text-gray-800 placeholder-gray-400 resize-none transition-colors"
                       placeholder={field.label}
-                      value={formData[field.name] || ""}
+                      value={String(formData[field.name] ?? "")}
                       required={field.required}
                       onChange={(e) => handleChange(field.name, e.target.value)}
                       rows={6}
@@ -159,7 +164,7 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
                       {formData[field.name] && (
                         <p className="text-xs text-orange-600 font-semibold mt-2">
                           {field.multiple
-                            ? `${Array.isArray(formData[field.name]) ? formData[field.name].length : 1} file(s) selected`
+                            ? `${Array.isArray(formData[field.name]) ? (formData[field.name] as File[]).length : 1} file(s) selected`
                             : "1 file selected"}
                         </p>
                       )}
@@ -169,7 +174,7 @@ const PostForm = ({ title, fields, submitUrl, onBeforeSubmit, onSuccess }: PostF
                       type={field.type}
                       className="w-full px-4 py-3 rounded-2xl border-2 border-gray-200 hover:border-orange-300 focus:border-orange-500 focus:outline-none bg-white text-gray-800 placeholder-gray-400 transition-colors"
                       placeholder={field.label}
-                      value={formData[field.name] || ""}
+                      value={String(formData[field.name] ?? "")}
                       required={field.required}
                       onChange={(e) => handleChange(field.name, e.target.value)}
                     />

@@ -9,6 +9,7 @@ export const useAuthSession = () => {
   const initAttempted = useRef(false);
 
   const setUser = useUserStore((s) => s.setUser);
+  const updateUser = useUserStore((s) => s.updateUser);
   const setAuthLoading = useUserStore((s) => s.setAuthLoading);
   const setCampus = useCampusStore((s) => s.setCampus);
   const clearCampus = useCampusStore((s) => s.clearCampus);
@@ -52,35 +53,42 @@ export const useAuthSession = () => {
             });
           }
 
-          // Try to fetch campus from profiles table
+          // Try to fetch campus and preferences from profiles table
           try {
             console.log("🔐 [authHook] Fetching profile and campus...");
             const { data: profile, error: profileError } = await supabase
               .from("profiles")
-              .select("campus_id")
+              .select("campus_id, show_all_campuses")
               .eq("id", authUser.id)
               .single();
 
             if (!isMounted) return;
 
-            if (!profileError && profile?.campus_id) {
-              // Fetch the full campus data including short_name
-              const { data: campus } = await supabase
-                .from("campuses")
-                .select("id, name, short_name")
-                .eq("id", profile.campus_id)
-                .single();
-
-              if (campus && isMounted) {
-                console.log("🔐 [authHook] Campus restored:", campus.name);
-                setCampus({
-                  id: campus.id,
-                  name: campus.name,
-                  short_name: campus.short_name,
-                });
+            if (!profileError) {
+              // Set show_all_campuses in user store
+              if (typeof profile.show_all_campuses !== "undefined") {
+                updateUser({ show_all_campuses: !!profile.show_all_campuses });
               }
-            } else {
-              console.log("🔐 [authHook] Profile found but no campus_id set");
+
+              if (profile?.campus_id) {
+                // Fetch the full campus data including short_name
+                const { data: campus } = await supabase
+                  .from("campuses")
+                  .select("id, name, short_name")
+                  .eq("id", profile.campus_id)
+                  .single();
+
+                if (campus && isMounted) {
+                  console.log("🔐 [authHook] Campus restored:", campus.name);
+                  setCampus({
+                    id: campus.id,
+                    name: campus.name,
+                    short_name: campus.short_name,
+                  });
+                }
+              } else {
+                console.log("🔐 [authHook] Profile found but no campus_id set");
+              }
             }
           } catch (e) {
             console.error("🔐 [authHook] Error fetching campus:", e);
@@ -119,29 +127,35 @@ export const useAuthSession = () => {
             name: session.user.user_metadata?.fullname,
           });
 
-          // Also restore campus on auth state change
+          // Also restore campus and preferences on auth state change
           try {
             const { data: profile, error: profileError } = await supabase
               .from("profiles")
-              .select("campus_id")
+              .select("campus_id, show_all_campuses")
               .eq("id", session.user.id)
               .single();
 
             if (!isMounted) return;
 
-            if (!profileError && profile?.campus_id) {
-              const { data: campus } = await supabase
-                .from("campuses")
-                .select("id, name, short_name")
-                .eq("id", profile.campus_id)
-                .single();
+            if (!profileError) {
+              if (typeof profile.show_all_campuses !== "undefined") {
+                updateUser({ show_all_campuses: !!profile.show_all_campuses });
+              }
 
-              if (campus && isMounted) {
-                setCampus({
-                  id: campus.id,
-                  name: campus.name,
-                  short_name: campus.short_name,
-                });
+              if (profile?.campus_id) {
+                const { data: campus } = await supabase
+                  .from("campuses")
+                  .select("id, name, short_name")
+                  .eq("id", profile.campus_id)
+                  .single();
+
+                if (campus && isMounted) {
+                  setCampus({
+                    id: campus.id,
+                    name: campus.name,
+                    short_name: campus.short_name,
+                  });
+                }
               }
             }
           } catch (e) {
@@ -161,7 +175,7 @@ export const useAuthSession = () => {
       isMounted = false;
       authListener?.subscription.unsubscribe();
     };
-  }, [setUser, setAuthLoading, setCampus, clearCampus]);
+  }, [setUser, updateUser, setAuthLoading, setCampus, clearCampus]);
 
   return { loading };
 };

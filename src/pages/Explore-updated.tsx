@@ -1,10 +1,11 @@
 // src/pages/Explore.tsx — 1 MONTH FREE EDITION (FINAL)
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { FaSearch, FaCrown, FaFire, FaShoppingBag, FaCalendarAlt, FaBookOpen, FaHome, FaStar, FaHeart, FaComment, FaUsers, FaUtensils } from "react-icons/fa";
 import BottomNav from "../components/BottomNav";
 import { supabase } from "../lib/supabaseClient";
 import { useCampusStore } from "../store/useCampusStore";
+import { useUserStore } from "../store/useUserStore";
 
 type RecentPost = {
   id: string;
@@ -20,10 +21,67 @@ type RecentPost = {
 
 const Explore = () => {
   const campus = useCampusStore((s) => s.campus);
+  const user = useUserStore((s) => s.user);
   const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [roommates, setRoommates] = useState<any[]>([]);
+  const [roommates, setRoommates] = useState<Record<string, unknown>[]>([]);
+
+  const fetchRecentPosts = useCallback(async () => {
+    if (!campus?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Build queries: include campus filter only when not showing all campuses
+      const mpQ = supabase.from('marketplace').select('id, title, description, price, images, created_at').order('created_at', { ascending: false }).limit(3);
+      const evQ = supabase.from('events').select('id, title, description, banner, created_at').order('date', { ascending: true }).limit(3);
+      const rmQ = supabase.from('roommates').select('id, title, description, image, roomType, budget, campus, created_at').order('created_at', { ascending: false }).limit(3);
+      const fdQ = supabase.from('food').select('id, name, description, price, image, created_at').order('created_at', { ascending: false }).limit(3);
+      const ntQ = supabase.from('notes').select('id, title, description, file, created_at').order('created_at', { ascending: false }).limit(3);
+      const cfQ = supabase.from('confessions').select('id, content, likes_count, comments_count, created_at').order('created_at', { ascending: false }).limit(3);
+
+      if (!user?.show_all_campuses && campus?.id) {
+        mpQ.eq('campus_id', campus.id);
+        evQ.eq('campus_id', campus.id);
+        rmQ.eq('campus_id', campus.id);
+        fdQ.eq('campus_id', campus.id);
+        ntQ.eq('campus_id', campus.id);
+        cfQ.eq('campus_id', campus.id);
+      }
+
+      const [marketplace, events, roommatesResp, food, notes, confessions] = await Promise.all([
+        mpQ, evQ, rmQ, fdQ, ntQ, cfQ,
+      ]);
+
+      const allPosts: RecentPost[] = [
+        ...((marketplace.data || []).map((p: Record<string, unknown>) => ({ ...p, type: 'marketplace' as const }))),
+        ...((events.data || []).map((p: Record<string, unknown>) => ({ ...p, title: (p as { title?: string }).title, description: (p as { description?: string }).description, images: (p as { banner?: string }).banner ? [(p as { banner?: string }).banner] : undefined, type: 'events' as const }))),
+        ...((roommatesResp.data || []).map((p: Record<string, unknown>) => ({ ...p, images: (p as { image?: string }).image ? [(p as { image?: string }).image] : undefined, type: 'roommates' as const }))),
+        ...((food.data || []).map((p: Record<string, unknown>) => ({ ...p, title: (p as { name?: string }).name, images: (p as { image?: string }).image ? [(p as { image?: string }).image] : undefined, type: 'food' as const }))),
+        ...((notes.data || []).map((p: Record<string, unknown>) => ({ ...p, type: 'notes' as const }))),
+        ...((confessions.data || []).map((p: Record<string, unknown>) => ({ ...p, title: 'Anonymous Confession', description: (p as { content?: string }).content, type: 'confessions' as const, likes_count: (p as { likes_count?: number }).likes_count, comments_count: (p as { comments_count?: number }).comments_count }))),
+      ];
+
+      // Sort by created_at and take top 12
+      const sortedPosts = allPosts
+        .sort((a, b) => new Date(String((b as { created_at?: string }).created_at)).getTime() - new Date(String((a as { created_at?: string }).created_at)).getTime())
+        .slice(0, 12);
+
+      setRecentPosts(sortedPosts);
+      setRoommates(roommatesResp.data || []);
+    } catch (err) {
+      console.error("Error fetching explore posts:", err);
+      setError("Failed to load recent activity");
+      setRecentPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [campus?.id, user?.show_all_campuses]);
 
   useEffect(() => {
     fetchRecentPosts();
@@ -38,7 +96,7 @@ const Explore = () => {
           event: '*',
           schema: 'public',
           table,
-          filter: campus?.id ? `campus_id=eq.${campus.id}` : undefined,
+          filter: !user?.show_all_campuses && campus?.id ? `campus_id=eq.${campus.id}` : undefined,
         }, () => {
           console.log(`Explore realtime update from ${table}`);
           fetchRecentPosts();
@@ -49,52 +107,9 @@ const Explore = () => {
     return () => {
       channels.forEach(channel => supabase.removeChannel(channel));
     };
-  }, [campus?.id]);
+  }, [campus?.id, fetchRecentPosts]);
 
-  const fetchRecentPosts = async () => {
-    if (!campus?.id) {
-      setLoading(false);
-      return;
-    }
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch recent posts from all tables
-      const [marketplace, events, roommates, food, notes, confessions] = await Promise.all([
-        supabase.from('marketplace').select('id, title, description, price, images, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('events').select('id, title, description, banner, created_at').eq('campus_id', campus.id).order('date', { ascending: true }).limit(3),
-        supabase.from('roommates').select('id, title, description, image, roomType, budget, campus, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('food').select('id, name, description, price, image, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('notes').select('id, title, description, file, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-        supabase.from('confessions').select('id, content, likes_count, comments_count, created_at').eq('campus_id', campus.id).order('created_at', { ascending: false }).limit(3),
-      ]);
-
-      const allPosts: RecentPost[] = [
-        ...((marketplace.data || []).map((p: any) => ({ ...p, type: 'marketplace' as const }))),
-        ...((events.data || []).map((p: any) => ({ ...p, title: p.title, description: p.description, images: p.banner ? [p.banner] : undefined, type: 'events' as const }))),
-        ...((roommates.data || []).map((p: any) => ({ ...p, images: p.image ? [p.image] : undefined, type: 'roommates' as const }))),
-        ...((food.data || []).map((p: any) => ({ ...p, title: p.name, images: p.image ? [p.image] : undefined, type: 'food' as const }))),
-        ...((notes.data || []).map((p: any) => ({ ...p, type: 'notes' as const }))),
-        ...((confessions.data || []).map((p: any) => ({ ...p, title: 'Anonymous Confession', description: p.content, type: 'confessions' as const, likes_count: p.likes_count, comments_count: p.comments_count }))),
-      ];
-
-      // Sort by created_at and take top 12
-      const sortedPosts = allPosts
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 12);
-
-      setRecentPosts(sortedPosts);
-      setRoommates(roommates.data || []);
-    } catch (err) {
-      console.error("Error fetching explore posts:", err);
-      setError("Failed to load recent activity");
-      setRecentPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getPostIcon = (type: string) => {
     switch (type) {

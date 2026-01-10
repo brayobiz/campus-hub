@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useUserStore } from "../../store/useUserStore";
-import { logoutUser } from "../../lib/authUtils";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaChevronLeft } from "react-icons/fa";
 
 const Login = () => {

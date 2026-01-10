@@ -14,7 +14,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   useEffect(() => {
     // Mark as hydrated after first render to allow persisted stores to load from localStorage
-    setIsHydrated(true);
+    // Use a microtask to avoid synchronous setState within effect body
+    const t = setTimeout(() => setIsHydrated(true), 0);
+    return () => clearTimeout(t);
   }, []);
 
   // If no user, redirect to login

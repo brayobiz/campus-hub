@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Search, Filter } from "lucide-react";
 import BottomNav from "../../components/BottomNav";
 import { supabase } from "../../lib/supabaseClient";
 import { useCampusStore } from "../../store/useCampusStore";
+import { useUserStore } from "../../store/useUserStore";
 
 type MarketplacePost = {
   id: string;
@@ -26,6 +27,42 @@ const MarketplaceFeed = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const campus = useCampusStore((s) => s.campus);
+  const user = useUserStore((s) => s.user);
+
+  const fetchMarketplacePosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!user?.show_all_campuses && !campus?.id) {
+        setError("Please select a campus first");
+        setLoading(false);
+        return;
+      }
+
+      // Build query depending on preference
+      let query: any = supabase
+        .from("marketplace")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (!user?.show_all_campuses && campus?.id) {
+        query = query.eq("campus_id", parseInt(campus.id));
+      }
+
+      const { data, error: fetchError } = await query;
+      if (fetchError) throw fetchError;
+
+      setPosts(data || []);
+    } catch (err) {
+      console.error("Error fetching marketplace posts:", err);
+      setError("Failed to load marketplace items");
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [campus?.id, user?.show_all_campuses]);
 
   useEffect(() => {
     fetchMarketplacePosts();
@@ -37,7 +74,7 @@ const MarketplaceFeed = () => {
         event: '*',
         schema: 'public',
         table: 'marketplace',
-        filter: campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
+        filter: !user?.show_all_campuses && campus?.id ? `campus_id=eq.${parseInt(campus.id)}` : undefined,
       }, (payload: any) => {
         console.log('Marketplace realtime update:', payload);
         fetchMarketplacePosts();
@@ -47,37 +84,9 @@ const MarketplaceFeed = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [campus?.id]);
+  }, [fetchMarketplacePosts]);
 
-  const fetchMarketplacePosts = async () => {
-    try {
-      setLoading(true);
-      setError(null);
 
-      if (!campus?.id) {
-        setError("Please select a campus first");
-        setLoading(false);
-        return;
-      }
-
-      const { data, error: fetchError } = await supabase
-        .from("marketplace")
-        .select("*")
-        .eq("campus_id", parseInt(campus.id))
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (fetchError) throw fetchError;
-
-      setPosts(data || []);
-    } catch (err) {
-      console.error("Error fetching marketplace posts:", err);
-      setError("Failed to load marketplace items");
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredPosts = posts.filter((post) => {
     const query = searchQuery.toLowerCase().trim();

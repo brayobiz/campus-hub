@@ -9,11 +9,8 @@ DROP TABLE IF EXISTS confession_likes CASCADE;
 DROP TABLE IF EXISTS confession_comments CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS roommate_posts CASCADE;
-DROP TABLE IF EXISTS roommates CASCADE;
 DROP TABLE IF EXISTS marketplace_items CASCADE;
-DROP TABLE IF EXISTS marketplace CASCADE;
 DROP TABLE IF EXISTS food_items CASCADE;
-DROP TABLE IF EXISTS food CASCADE;
 DROP TABLE IF EXISTS notes CASCADE;
 DROP TABLE IF EXISTS events CASCADE;
 DROP TABLE IF EXISTS confessions CASCADE;
@@ -210,86 +207,53 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 -- ===========================================
 
 -- Events policies
-DROP POLICY IF EXISTS "Anyone can view events" ON events;
-DROP POLICY IF EXISTS "Authenticated users can insert events" ON events;
-DROP POLICY IF EXISTS "Users can update own events" ON events;
-DROP POLICY IF EXISTS "Users can delete own events" ON events;
 CREATE POLICY "Anyone can view events" ON events FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert events" ON events FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own events" ON events FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own events" ON events FOR DELETE USING (auth.uid() = user_id);
 
 -- Food policies
-DROP POLICY IF EXISTS "Anyone can view food" ON food;
-DROP POLICY IF EXISTS "Authenticated users can insert food" ON food;
-DROP POLICY IF EXISTS "Users can update own food" ON food;
-DROP POLICY IF EXISTS "Users can delete own food" ON food;
 CREATE POLICY "Anyone can view food" ON food FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert food" ON food FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own food" ON food FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own food" ON food FOR DELETE USING (auth.uid() = user_id);
 
 -- Notes policies
-DROP POLICY IF EXISTS "Anyone can view notes" ON notes;
-DROP POLICY IF EXISTS "Authenticated users can insert notes" ON notes;
-DROP POLICY IF EXISTS "Users can update own notes" ON notes;
-DROP POLICY IF EXISTS "Users can delete own notes" ON notes;
 CREATE POLICY "Anyone can view notes" ON notes FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert notes" ON notes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own notes" ON notes FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own notes" ON notes FOR DELETE USING (auth.uid() = user_id);
 
 -- Marketplace policies
-DROP POLICY IF EXISTS "Anyone can view marketplace" ON marketplace;
-DROP POLICY IF EXISTS "Authenticated users can insert marketplace" ON marketplace;
-DROP POLICY IF EXISTS "Users can update own marketplace" ON marketplace;
-DROP POLICY IF EXISTS "Users can delete own marketplace" ON marketplace;
 CREATE POLICY "Anyone can view marketplace" ON marketplace FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert marketplace" ON marketplace FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own marketplace" ON marketplace FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own marketplace" ON marketplace FOR DELETE USING (auth.uid() = user_id);
 
 -- Confessions policies
-DROP POLICY IF EXISTS "Anyone can view confessions" ON confessions;
-DROP POLICY IF EXISTS "Authenticated users can insert confessions" ON confessions;
-DROP POLICY IF EXISTS "Users can update own confessions" ON confessions;
-DROP POLICY IF EXISTS "Users can delete own confessions" ON confessions;
 CREATE POLICY "Anyone can view confessions" ON confessions FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert confessions" ON confessions FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own confessions" ON confessions FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own confessions" ON confessions FOR DELETE USING (auth.uid() = user_id);
 
 -- Confession comments policies
-DROP POLICY IF EXISTS "Anyone can view confession_comments" ON confession_comments;
-DROP POLICY IF EXISTS "Authenticated users can insert confession_comments" ON confession_comments;
-DROP POLICY IF EXISTS "Users can update own confession_comments" ON confession_comments;
-DROP POLICY IF EXISTS "Users can delete own confession_comments" ON confession_comments;
 CREATE POLICY "Anyone can view confession_comments" ON confession_comments FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert confession_comments" ON confession_comments FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own confession_comments" ON confession_comments FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own confession_comments" ON confession_comments FOR DELETE USING (auth.uid() = user_id);
 
 -- Confession likes policies
-DROP POLICY IF EXISTS "Anyone can view confession_likes" ON confession_likes;
-DROP POLICY IF EXISTS "Authenticated users can insert confession_likes" ON confession_likes;
-DROP POLICY IF EXISTS "Users can delete own confession_likes" ON confession_likes;
 CREATE POLICY "Anyone can view confession_likes" ON confession_likes FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert confession_likes" ON confession_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own confession_likes" ON confession_likes FOR DELETE USING (auth.uid() = user_id);
 
 -- Roommates policies
-DROP POLICY IF EXISTS "Anyone can view roommates" ON roommates;
-DROP POLICY IF EXISTS "Authenticated users can insert roommates" ON roommates;
-DROP POLICY IF EXISTS "Users can update own roommates" ON roommates;
-DROP POLICY IF EXISTS "Users can delete own roommates" ON roommates;
 CREATE POLICY "Anyone can view roommates" ON roommates FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert roommates" ON roommates FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own roommates" ON roommates FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete own roommates" ON roommates FOR DELETE USING (auth.uid() = user_id);
 
 -- Notifications policies
-DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
-DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own notifications" ON notifications FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "System can insert notifications" ON notifications FOR INSERT WITH CHECK (true);
@@ -413,10 +377,6 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('uploads', 'uploads', true)
 ON CONFLICT (id) DO NOTHING;
 
-DROP POLICY IF EXISTS "Anyone can view uploads" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated users can upload files" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update own uploads" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete own uploads" ON storage.objects;
 CREATE POLICY "Anyone can view uploads" ON storage.objects FOR SELECT USING (bucket_id = 'uploads');
 CREATE POLICY "Authenticated users can upload files" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'uploads' AND auth.uid()::text = (storage.foldername(name))[1]);
 CREATE POLICY "Users can update own uploads" ON storage.objects FOR UPDATE USING (bucket_id = 'uploads' AND auth.uid()::text = (storage.foldername(name))[1]);
