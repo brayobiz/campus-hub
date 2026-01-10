@@ -118,6 +118,7 @@ Understand the full system            → ARCHITECTURE.md
 
 ### New Files
 - **`supabase/migrations/add_profile_fields.sql`** — Database migration (copy-paste to Supabase)
+- **`supabase/migrations/2026-01-09_add_confession_like_notification.sql`** — Adds a trigger to create notifications when confessions are liked
 - **`src/pages/Settings.tsx`** — New Settings page (300+ lines, well-commented)
 
 ### Modified Files
@@ -131,7 +132,7 @@ Understand the full system            → ARCHITECTURE.md
 ## ✅ Deployment Checklist
 
 - [ ] Read QUICK_START.md
-- [ ] Run SQL migration in Supabase Dashboard
+- [ ] Run SQL migrations in Supabase Dashboard (apply `add_profile_fields.sql` and `2026-01-09_add_confession_like_notification.sql`)
 - [ ] Deploy code to production
 - [ ] Hard refresh browser
 - [ ] Test signup → logout → login → campus persists

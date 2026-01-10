@@ -46,6 +46,10 @@ Created `/supabase/migrations/add_profile_fields.sql` to add:
 - `show_all_campuses` (BOOLEAN DEFAULT FALSE) — for Settings toggle
 - Index on `campus_id` for faster lookups
 
+Also created `/supabase/migrations/2026-01-09_add_confession_like_notification.sql` to add:
+- DB trigger `create_notification_on_confession_like` which inserts a notification into `notifications` when a new `confession_likes` record is inserted (skips self-likes)
+- Trigger ensures confession owners receive realtime in-app notifications when someone likes their confession
+
 ## How to Apply the Changes
 
 ### Step 1: Apply Supabase Migration
