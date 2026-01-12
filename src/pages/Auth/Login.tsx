@@ -2,7 +2,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { withTimeout } from "../../lib/promiseUtils";
 import { useUserStore } from "../../store/useUserStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaArrowRight, FaChevronLeft } from "react-icons/fa";
 
 const Login = () => {
@@ -18,24 +20,39 @@ const Login = () => {
 
   const handleResendConfirmation = async () => {
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/campuspicker`,
-        },
-      });
+      const result: any = await withTimeout(
+        supabase.auth.resend({
+          type: 'signup',
+          email: email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/campuspicker`,
+          },
+        }),
+        9000,
+        'resend confirmation timed out'
+      );
+
+      const error = result?.error ?? null;
 
       if (error) {
-        setError("Failed to resend confirmation email: " + error.message);
+        console.error('Resend confirmation error:', error);
+        setError('Failed to resend confirmation email: ' + (error.message || String(error)));
       } else {
-        setSuccessMessage("Confirmation email sent! Check your inbox.");
+        setSuccessMessage('Confirmation email sent! Check your inbox.');
       }
-    } catch (err) {
-      console.error("Error resending confirmation:", err);
-      setError("Failed to resend confirmation email");
+    } catch (err: any) {
+      console.error('Error resending confirmation:', err);
+      const message = err?.message || String(err);
+      if (message.includes('NOT_FOUND') || message.includes('404')) {
+        setError('Failed to resend confirmation: authentication service not found. Check Supabase configuration.');
+      } else {
+        setError('Failed to resend confirmation email. Please try again.');
+      }
     }
   };
+
+  const login = useAuthStore((s) => s.login);
+  const authError = useAuthStore((s) => s.error);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,50 +67,46 @@ const Login = () => {
     }
 
     try {
-      console.log("🔐 [Login] Starting login...");
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      console.log("🔐 [Login] Starting login via AuthStore...");
+      const ok = await login(email, password);
 
-      if (error) {
-        console.error("❌ [Login] Login error:", error.message);
-        if (error.message?.toLowerCase().includes("invalid login credentials")) {
-          setError("Invalid email or password. Please try again.");
-        } else if (error.message?.toLowerCase().includes("email not confirmed")) {
-          setError("Email not confirmed. Check your inbox for the confirmation link.");
+      if (!ok) {
+        // Prefer store error if available. Use getState to get the latest value set by the async action.
+        const storeError = (useAuthStore as any).getState().error;
+        const msg = storeError || "Login failed. Please try again.";
+
+        // Detect common Supabase not found / 404 responses and show actionable text
+        if (typeof msg === "string" && (msg.includes("NOT_FOUND") || msg.includes("404"))) {
+          setError(
+            "Login failed: authentication service not found (404). Please check your Supabase URL and keys in your environment configuration."
+          );
+          console.error("Login failure details:", msg);
         } else {
-          setError(error.message || "Login failed. Please try again.");
+          setError(msg);
         }
+
         setAuthLoading(false);
         return;
       }
 
-      if (!data?.user?.id) {
-        setError("Login failed - no user returned from Supabase.");
-        setAuthLoading(false);
-        return;
-      }
-
-      console.log("✅ [Login] Login successful");
-      
-      // Update user store
-      setUser({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.user_metadata?.fullname,
-      });
-
+      // On success, the AuthStore will have populated the user state
       setSuccessMessage("Login successful! Redirecting...");
       setAuthLoading(false);
-      
+
       setTimeout(() => {
         navigate("/home");
       }, 800);
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ [Login] Unexpected error:", err);
-      setError("An unexpected error occurred. Please try again.");
+
+      // Handle some Supabase error shapes more gracefully
+      const message = err?.message || String(err);
+      if (message.includes("NOT_FOUND") || message.includes("404")) {
+        setError("Login failed: authentication endpoint not found. Check Supabase URL or keys.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+
       setAuthLoading(false);
     }
   };
@@ -187,7 +200,7 @@ const Login = () => {
                 <input
                   type="email"
                   required
-                  placeholder="you@university.edu"
+                  placeholder="harryokoth@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder-white/40 focus:bg-white/10 focus:border-orange-500/50 focus:outline-none transition text-base"

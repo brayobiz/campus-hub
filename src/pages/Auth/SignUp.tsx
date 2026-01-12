@@ -212,7 +212,7 @@ const SignUp = () => {
                 <input
                   type="email"
                   required
-                  placeholder="you@university.edu"
+                  placeholder="harryokoth@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-white placeholder-white/40 focus:bg-white/10 focus:border-purple-500/50 focus:outline-none transition text-sm"
