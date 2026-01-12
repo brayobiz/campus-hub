@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabase } from "../lib/supabaseClient";
+import { withTimeout } from "../lib/promiseUtils";
 
 export interface User {
   id: string;
@@ -49,15 +50,21 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null }),
 
       // Login with email and password
+      // Login flow: wrapped in timeouts to prevent hung auth calls from blocking the UI.
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
           console.log("🔐 [AuthStore] Logging in:", email);
           
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
+          // Apply a timeout so a hung auth call doesn't block the UI
+          const signInResult = await withTimeout(
+            supabase.auth.signInWithPassword({ email, password }),
+            9000,
+            "signInWithPassword timed out"
+          );
+
+          const data = (signInResult as any)?.data ?? null;
+          const error = (signInResult as any)?.error ?? null;
 
           if (error) {
             console.error("❌ [AuthStore] Login error:", error.message);
@@ -70,12 +77,15 @@ export const useAuthStore = create<AuthState>()(
             return false;
           }
 
-          // Fetch full profile from database
-          const { data: profileData, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", data.user.id)
-            .single();
+          // Fetch full profile from database (with timeout)
+          const profileResult = await withTimeout(
+            supabase.from("profiles").select("*").eq("id", data.user.id).single(),
+            9000,
+            "profile fetch timed out"
+          );
+
+          const profileData = (profileResult as any)?.data ?? null;
+          const profileError = (profileResult as any)?.error ?? null;
 
           if (profileError) {
             console.warn("⚠️ [AuthStore] Profile fetch error:", profileError);
@@ -172,16 +182,13 @@ export const useAuthStore = create<AuthState>()(
       },
 
       // Logout
+      // Logout flow: use a timeout to avoid blocking UI and ensure clear state on completion.
       logout: async () => {
         set({ isLoading: true });
         try {
           console.log("🔐 [AuthStore] Logging out");
           
-          const { error } = await supabase.auth.signOut();
-          
-          if (error) {
-            console.error("❌ [AuthStore] Logout error:", error.message);
-          }
+          await withTimeout(supabase.auth.signOut(), 9000, "signOut timed out");
 
           set({
             user: null,
@@ -239,7 +246,9 @@ export const useAuthStore = create<AuthState>()(
         try {
           console.log("🔐 [AuthStore] Refreshing session");
           
-          const { data, error } = await supabase.auth.refreshSession();
+          const refreshResult = await withTimeout(supabase.auth.refreshSession(), 9000, "refreshSession timed out");
+          const data = (refreshResult as any)?.data ?? null;
+          const error = (refreshResult as any)?.error ?? null;
 
           if (error || !data?.user) {
             console.error("❌ [AuthStore] Session refresh failed");
@@ -248,11 +257,13 @@ export const useAuthStore = create<AuthState>()(
           }
 
           // Fetch updated profile
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", data.user.id)
-            .single();
+          const profileResult = await withTimeout(
+            supabase.from("profiles").select("*").eq("id", data.user.id).single(),
+            9000,
+            "profile fetch timed out"
+          );
+
+          const profileData = (profileResult as any)?.data ?? null;
 
           const user: User = {
             id: data.user.id,

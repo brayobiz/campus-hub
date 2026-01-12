@@ -5,6 +5,7 @@ import { FaUser, FaChevronRight, FaSignOutAlt, FaEdit, FaExclamationCircle, FaSy
 import { useUserStore } from "../store/useUserStore";
 import { useCampusStore } from "../store/useCampusStore";
 import { supabase } from "../lib/supabaseClient";
+import { withTimeout } from "../lib/promiseUtils";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ProfileData {
@@ -126,11 +127,13 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
       // Simulate network delay for better UX
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      const { data, error: fetchError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      const profileResult = await withTimeout(
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
+        9000,
+        "profile fetch timed out"
+      );
+      const data = (profileResult as any)?.data ?? null;
+      const fetchError = (profileResult as any)?.error ?? null;
 
       if (fetchError) {
         // Profile not found is okay (new user)
@@ -325,9 +328,8 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
       setSaving(true);
       setError({ hasError: false, message: "", type: null });
       
-      // Sign out from Supabase
-      const { error: signOutError } = await supabase.auth.signOut();
-      if (signOutError) throw signOutError;
+      // Sign out from Supabase (use timeout to avoid hangs)
+      await withTimeout(supabase.auth.signOut(), 9000, "signOut timed out");
 
       // Clear Zustand stores
       const { clearUser } = useUserStore.getState();

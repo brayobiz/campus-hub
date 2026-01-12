@@ -49,8 +49,33 @@ const Explore = () => {
         .subscribe()
     );
 
+    // Also listen for confession_likes so like counts update
+    const likesChannel = supabase
+      .channel('confession_likes_changes_explore')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'confession_likes',
+      }, (payload: unknown) => {
+        const p = payload as Record<string, unknown>;
+        const rec = (p.new as Record<string, unknown>) || (p.old as Record<string, unknown>) || (p.record as Record<string, unknown>) || p;
+        const ev = String((p.eventType as string) || (p.event as string) || '').toUpperCase();
+        const confessionId = rec ? String(rec.confession_id) : undefined;
+        if (!confessionId) return;
+
+        setRecentPosts((prev) =>
+          prev.map((post) =>
+            post.type === 'confessions' && post.id === confessionId
+              ? { ...post, likes_count: ev === 'INSERT' ? (Number(post.likes_count || 0) + 1) : Math.max(0, Number(post.likes_count || 0) - 1) }
+              : post
+          )
+        );
+      })
+      .subscribe();
+
     return () => {
       channels.forEach(channel => supabase.removeChannel(channel));
+      supabase.removeChannel(likesChannel);
     };
   }, [campus?.id]);
 

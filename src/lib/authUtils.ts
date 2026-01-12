@@ -171,13 +171,15 @@ export const updateUserCampus = async (userId: string, campusId: string) => {
 /**
  * Logout user
  */
+import { withTimeout } from "./promiseUtils";
+
 export const logoutUser = async () => {
   try {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    // Use a hard timeout so logout cannot hang and block UI
+    await withTimeout(supabase.auth.signOut(), 9000, "signOut timed out");
     return true;
   } catch (err: unknown) {
-    console.error("Logout error:", err);
+    console.error("Logout error or timeout:", err);
     return false;
   }
 };
@@ -187,10 +189,11 @@ export const logoutUser = async () => {
  */
 export const isUserAuthenticated = async () => {
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionResult = await withTimeout(supabase.auth.getSession(), 9000, "getSession timed out");
+    const sessionData = (sessionResult as any)?.data ?? null;
     return !!sessionData?.session?.user;
   } catch (err) {
-    console.error("Error checking auth:", err);
+    console.error("Error checking auth or timeout:", err);
     return false;
   }
 };

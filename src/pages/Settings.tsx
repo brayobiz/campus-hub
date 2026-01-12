@@ -18,6 +18,7 @@ import {
 import { useUserStore } from "../store/useUserStore";
 import { useCampusStore } from "../store/useCampusStore";
 import { supabase } from "../lib/supabaseClient";
+import { withTimeout } from "../lib/promiseUtils";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -44,16 +45,19 @@ const Settings = () => {
   useEffect(() => {
     const loadProfileData = async () => {
       try {
-        const { data: sessionData } = await supabase.auth.getUser();
+        const sessionResult = await withTimeout(supabase.auth.getUser(), 9000, "getUser timed out");
+        const sessionData = (sessionResult as any)?.data ?? null;
         const uid = sessionData?.user?.id;
         if (!uid) return;
 
-        // Fetch profile data
-        const { data: p } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", uid)
-          .single();
+        // Fetch profile data (with timeout)
+        const profileResult = await withTimeout(
+          supabase.from("profiles").select("*").eq("id", uid).single(),
+          9000,
+          "profile fetch timed out"
+        );
+
+        const p = (profileResult as any)?.data ?? null;
 
         if (p) {
           setProfile(p);
@@ -64,7 +68,8 @@ const Settings = () => {
         }
 
         // Check personal email verification
-        const { user: authUser } = await supabase.auth.getUser();
+        const authUserResult = await withTimeout(supabase.auth.getUser(), 9000, "getUser timed out");
+        const authUser = (authUserResult as any)?.data?.user ?? null;
         setPersonalEmailVerified(!!authUser?.email_confirmed_at);
       } catch (e) {
         console.warn("Failed to load profile:", e);
@@ -78,10 +83,12 @@ const Settings = () => {
   useEffect(() => {
     const fetchCampuses = async () => {
       try {
-        const { data } = await supabase
-          .from("campuses")
-          .select("id, name, short_name, email_domain")
-          .order("name", { ascending: true });
+        const campusResult = await withTimeout(
+          supabase.from("campuses").select("id, name, short_name, email_domain").order("name", { ascending: true }),
+          9000,
+          "campus fetch timed out"
+        );
+        const data = (campusResult as any)?.data ?? null;
         setCampuses(data || []);
       } catch (e) {
         console.warn("Failed to fetch campuses:", e);
@@ -93,7 +100,8 @@ const Settings = () => {
   const handleCampusChange = async (campusId: string) => {
     setLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getUser();
+      const sessionResult = await withTimeout(supabase.auth.getUser(), 9000, "getUser timed out");
+      const sessionData = (sessionResult as any)?.data ?? null;
       const uid = sessionData?.user?.id;
       if (!uid) throw new Error("User not signed in");
 
@@ -119,7 +127,8 @@ const Settings = () => {
   const handleToggleAllCampuses = async () => {
     setLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getUser();
+      const sessionResult = await withTimeout(supabase.auth.getUser(), 9000, "getUser timed out");
+      const sessionData = (sessionResult as any)?.data ?? null;
       const uid = sessionData?.user?.id;
       if (!uid) throw new Error("User not signed in");
 
@@ -155,7 +164,8 @@ const Settings = () => {
 
     setSendingEmail(true);
     try {
-      const { data: sessionData } = await supabase.auth.getUser();
+      const sessionResult = await withTimeout(supabase.auth.getUser(), 9000, "getUser timed out");
+      const sessionData = (sessionResult as any)?.data ?? null;
       const uid = sessionData?.user?.id;
       if (!uid) throw new Error("User not signed in");
 
@@ -193,9 +203,14 @@ const Settings = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    clearUser();
-    navigate("/");
+    try {
+      await withTimeout(supabase.auth.signOut(), 9000, "signOut timed out");
+    } catch (e) {
+      console.warn("Logout timed out or failed:", e);
+    } finally {
+      clearUser();
+      navigate("/");
+    }
   };
 
   return (

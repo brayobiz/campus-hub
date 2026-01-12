@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "../../lib/supabaseClient";
+import { withTimeout } from "../../lib/promiseUtils";
 import { useCampusStore } from "../../store/useCampusStore";
 import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
@@ -37,12 +38,14 @@ const CampusPicker = () => {
     setError("");
 
     try {
-      const { data, error } = await supabase
-        .from("campuses")
-        .select("id, name, short_name")
-        .order("name", { ascending: true });
+      const campusResult = await withTimeout(
+        supabase.from("campuses").select("id, name, short_name").order("name", { ascending: true }),
+        9000,
+        "campus fetch timed out"
+      );
 
-      if (error) throw error;
+      const data = (campusResult as any)?.data ?? null;
+      if (!data) throw new Error("No campus data returned");
 
       if (!data || data.length === 0) {
         // Use fallback mock campuses if none found
@@ -71,18 +74,20 @@ const CampusPicker = () => {
   // Fetch current user profile and redirect if campus exists
   const checkUserCampus = async () => {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData?.user?.id;
+      const userResult = await withTimeout(supabase.auth.getUser(), 9000, "getUser timed out");
+      const userId = (userResult as any)?.data?.user?.id;
 
       if (!userId) return;
 
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("campus_id")
-        .eq("id", userId)
-        .single();
+      const profileResult = await withTimeout(
+        supabase.from("profiles").select("campus_id").eq("id", userId).single(),
+        9000,
+        "profile fetch timed out"
+      );
 
-      if (!error && profile?.campus_id) {
+      const profile = (profileResult as any)?.data ?? null;
+
+      if (profile?.campus_id) {
         // Find the campus and set it in store
         const userCampus = campuses.find(c => c.id === profile.campus_id.toString());
         if (userCampus) {
@@ -121,8 +126,8 @@ const CampusPicker = () => {
     setError("");
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData?.user;
+      const userResult = await withTimeout(supabase.auth.getUser(), 9000, "getUser timed out");
+      const user = (userResult as any)?.data?.user;
       const userId = user?.id;
       const userEmail = user?.email;
 
