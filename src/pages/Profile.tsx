@@ -511,8 +511,8 @@ const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
               <SettingRow
                 icon="🔔"
                 label="Notifications"
-                value="Manage notification preferences"
-                onTap={() => navigate("/notifications")}
+                value="View and manage notifications"
+                onTap={() => navigate("/alerts")}
               />
             </div>
           </div>

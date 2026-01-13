@@ -26,6 +26,7 @@ const Alerts = () => {
   const [error, setError] = useState<{ hasError: boolean; message: string; type: 'network' | 'database' | 'unknown' } | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 2;
+  const [filter, setFilter] = useState<"all" | "unread">("all");
 
   type NotificationRow = {
     id: string;
@@ -131,14 +132,46 @@ const Alerts = () => {
     }
   };
 
-  const formatTime = (timestamp: string) => {
-    const now = new Date();
-    const diff = Math.floor((now.getTime() - new Date(timestamp).getTime()) / 1000);
-    if (diff < 60) return "now";
-    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return `${Math.floor(diff / 86400)}d`;
+  const handleMarkAsRead = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", alertId);
+
+      if (error) throw error;
+
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.id === alertId ? { ...a, read: true } : a
+        )
+      );
+    } catch (err) {
+      console.error("Error marking alert as read:", err);
+    }
   };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("user_id", user?.id)
+        .eq("read", false);
+
+      if (error) throw error;
+
+      setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
+    } catch (err) {
+      console.error("Error marking all as read:", err);
+    }
+  };
+
+  const filteredAlerts = filter === "unread"
+    ? alerts.filter((a) => !a.read)
+    : alerts;
+
+  const unreadCount = alerts.filter((a) => !a.read).length;
 
   const getAlertIcon = (type: string) => {
     switch (type) {
@@ -151,6 +184,15 @@ const Alerts = () => {
     }
   };
 
+  const formatTime = (timestamp: string) => {
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - new Date(timestamp).getTime()) / 1000);
+    if (diff < 60) return "now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    return `${Math.floor(diff / 86400)}d`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-24">
       {/* Floating Header */}
@@ -158,7 +200,7 @@ const Alerts = () => {
         <div className="px-4 sm:px-6 py-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900">Alerts</h1>
-            <p className="text-orange-600 font-bold text-lg -mt-1">Live updates · {alerts.length} new</p>
+            <p className="text-orange-600 font-bold text-lg -mt-1">Live updates · {unreadCount} unread</p>
           </div>
 
           {/* Animated Bell */}
@@ -170,6 +212,33 @@ const Alerts = () => {
             <FaBell className="text-2xl sm:text-3xl text-orange-500 drop-shadow-lg" />
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-4 border-white animate-pulse" />
           </motion.div>
+        </div>
+
+        {/* Filter & Actions */}
+        <div className="px-4 sm:px-6 pb-4 flex items-center justify-between">
+          <div className="flex gap-2">
+            {["all", "unread"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f as "all" | "unread")}
+                className={`px-4 py-2 rounded-full font-semibold text-sm transition-all ${
+                  filter === f
+                    ? "bg-orange-500 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {f === "all" ? "All" : `Unread (${unreadCount})`}
+              </button>
+            ))}
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllAsRead}
+              className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors"
+            >
+              Mark all as read
+            </button>
+          )}
         </div>
       </header>
 
@@ -228,21 +297,28 @@ const Alerts = () => {
         {/* Alerts List */}
         {!loading && !error && (
           <div className="space-y-3">
-            {alerts.length === 0 ? (
+            {filteredAlerts.length === 0 ? (
               <div className="text-center py-20">
                 <FaBell className="w-16 h-16 text-gray-300 mx-auto mb-6" />
-                <h3 className="text-xl font-bold text-gray-800 mb-2">No alerts yet</h3>
-                <p className="text-gray-600">You'll see notifications here when people interact with your posts</p>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  {filter === "unread" ? "No unread alerts" : "No alerts yet"}
+                </h3>
+                <p className="text-gray-600">
+                  {filter === "unread"
+                    ? "All caught up!"
+                    : "You'll see notifications here when people interact with your posts"}
+                </p>
               </div>
             ) : (
-              alerts.map((alert, i) => (
+              filteredAlerts.map((alert, i) => (
                 <motion.div
                   key={alert.id}
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.07 }}
                   whileTap={{ scale: 0.97 }}
-                  className={`bg-white rounded-3xl p-5 shadow-lg border border-gray-100 flex items-center gap-4 ${!alert.read ? 'border-l-4 border-l-orange-500' : ''}`}
+                  className={`bg-white rounded-3xl p-5 shadow-lg border border-gray-100 flex items-center gap-4 cursor-pointer ${!alert.read ? 'border-l-4 border-l-orange-500' : ''}`}
+                  onClick={() => !alert.read && handleMarkAsRead(alert.id)}
                 >
                   <div className="p-3 bg-gray-100 rounded-2xl">
                     {getAlertIcon(alert.type)}
